@@ -6,11 +6,11 @@ More details to come...
 
 
 ### Installation
-```sudo apt install -y xserver-xorg-video-fbturbo xinit xinput x11-xserver-utils python-gi python-gi-cairo gir1.2-gtk-3.0 python-requests python-websocket
+``` sudo apt install -y xserver-xorg-video-fbturbo xinit xinput x11-xserver-utils python-gi python-gi-cairo gir1.2-gtk-3.0 python-requests python-websocket
 ```
 
 Add the following to _/boot/config.text_
-```hdmi_cvt=800 533 60 6
+``` hdmi_cvt=800 533 60 6
 hdmi_group=2
 hdmi_mode=87
 hdmi_drive=2
