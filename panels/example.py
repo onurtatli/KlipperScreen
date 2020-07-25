@@ -4,6 +4,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 
 from KlippyGtk import KlippyGtk
+from KlippyGcodes import KlippyGcodes
 
 class ExamplePanel:
     _screen = None
@@ -13,7 +14,7 @@ class ExamplePanel:
         self._screen = screen
 
 
-    def initialize(self, menu):
+    def initialize(self):
         # Create gtk items here
 
     def get(self):

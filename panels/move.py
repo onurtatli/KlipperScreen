@@ -4,12 +4,13 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 
 from KlippyGtk import KlippyGtk
+from KlippyGcodes import KlippyGcodes
 
 class MovePanel:
     _screen = None
     labels = {}
     distance = 1
-    distances = ['.1','1','5','10']
+    distances = ['.1','.5','1','5','10','25']
 
 
     def __init__(self, screen):
@@ -18,9 +19,7 @@ class MovePanel:
 
     def initialize(self):
 
-        grid = Gtk.Grid()
-        grid.set_column_homogeneous(True)
-        grid.set_row_homogeneous(True)
+        grid = KlippyGtk.HomogeneousGrid()
 
         self.labels['x+'] = KlippyGtk.ButtonImage("move-x+", "X+", "color1")
         self.labels['x+'].connect("clicked", self.move, "X", "+")
@@ -44,16 +43,16 @@ class MovePanel:
         grid.attach(self.labels['x+'], 0, 1, 1, 1)
         grid.attach(self.labels['x-'], 2, 1, 1, 1)
         grid.attach(self.labels['y+'], 1, 0, 1, 1)
-        grid.attach(self.labels['y-'], 1, 2, 1, 1)
-        grid.attach(self.labels['z+'], 0, 0, 1, 1)
-        grid.attach(self.labels['z-'], 2, 0, 1, 1)
+        grid.attach(self.labels['y-'], 1, 1, 1, 1)
+        grid.attach(self.labels['z+'], 3, 0, 1, 1)
+        grid.attach(self.labels['z-'], 3, 1, 1, 1)
 
-        grid.attach(self.labels['home'], 0, 2, 1, 1)
+        grid.attach(self.labels['home'], 0, 0, 1, 1)
 
-        distgrid = Gtk.Grid(row_spacing=0)
+        distgrid = Gtk.Grid()
         j = 0;
         for i in self.distances:
-            self.labels[i] = KlippyGtk.ToggleButton(i+"mm")
+            self.labels[i] = KlippyGtk.ToggleButton(i)
             self.labels[i].connect("clicked", self.change_distance, i)
             ctx = self.labels[i].get_style_context()
             if j == 0:
@@ -64,13 +63,16 @@ class MovePanel:
                 ctx.add_class("distbutton")
             if i == "1":
                 ctx.add_class("distbutton_active")
-            distgrid.attach(self.labels[i], 0, j, 1, 1)
+            distgrid.attach(self.labels[i], j, 0, 1, 1)
             j += 1
 
         self.labels["1"].set_active(True)
 
-        grid.set_row_spacing(0)
-        grid.attach(distgrid, 3, 0, 1, 2)
+        space_grid = KlippyGtk.HomogeneousGrid()
+        space_grid.attach(Gtk.Label("Distance (mm):"),0,0,1,1)
+        space_grid.attach(distgrid,0,1,1,1)
+        space_grid.attach(Gtk.Label(" "),0,2,1,1)
+        grid.attach(space_grid, 0, 2, 3, 1)
 
 
 
@@ -84,7 +86,7 @@ class MovePanel:
         return self.grid
 
     def home(self, widget):
-        self._screen._ws.send_method("post_printer_gcode", {"script": "G28"})
+        self._screen._ws.send_method("post_printer_gcode", {"script": KlippyGcodes.HOME})
 
     def change_distance(self, widget, distance):
         if self.distance == distance:
@@ -107,6 +109,5 @@ class MovePanel:
         print "# Moving " + axis + " " + dist + "mm"
 
 
-        self._screen._ws.send_method("post_printer_gcode", {"script": "G91"})
-        print "G1 "+axis+dist
-        #self._screen._ws.send_method("post_printer_gcode", {"script": "G1 "+axis+dist})
+        self._screen._ws.send_method("post_printer_gcode_script", {"script": KlippyGcodes.MOVE_RELATIVE})
+        self._screen._ws.send_method("post_printer_gcode_script", {"script": KlippyGcodes.MOVE + " "+axis+dist})

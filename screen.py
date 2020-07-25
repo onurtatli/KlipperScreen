@@ -52,17 +52,39 @@ class KlipperScreen(Gtk.Window):
                 continue
             ready = True
 
-        r = requests.get("http://127.0.0.1:7125/printer/status?toolhead")
+        status_objects = [
+            'idle_timeout',
+            'configfile',
+            'toolhead',
+            'virtual_sdcard'
+        ]
+        r = requests.get("http://127.0.0.1:7125/printer/objects/status?" + "&".join(status_objects))
         self.create_websocket()
 
         #TODO: Check that we get good data
         data = json.loads(r.content)
+        self.printer_config = data['result']['configfile']['config']
+        self.read_printer_config()
 
-        if data['result']['toolhead']['status'] == "Printing":
-            self.show_panel('job_status',"JobStatusPanel")
+        if data['result']['toolhead']['status'] == "Printing" and data['result']['virtual_sdcard']['is_active'] == True and True == False:
+            self.show_panel('job_status',"JobStatusPanel", 2)
         else:
-            self.show_panel('main_panel',"MainPanel",2,items=self._config)
+            self.show_panel('main_panel',"MainPanel",2,items=self._config, extrudercount=self.extrudercount)
 
+
+    def read_printer_config(self):
+        print "### Reading printer config"
+        self.toolcount = 0
+        self.extrudercount = 0
+        for x in self.printer_config.keys():
+            if x.startswith('extruder'):
+                if x.startswith('extruder_stepper') or "shared_heater" in self.printer_config[x]:
+                    self.toolcount += 1
+                    continue
+                print x
+                self.extrudercount += 1
+
+        print "### Toolcount: " + str(self.toolcount) + " Heaters: " + str(self.extrudercount)
 
     def show_panel(self, panel_name, type, remove=None, pop=True, **kwargs):
         if remove == 2:
@@ -76,13 +98,18 @@ class KlipperScreen(Gtk.Window):
                 self.panels[panel_name] = MainPanel(self)
             elif type == "menu":
                 self.panels[panel_name] = MenuPanel(self)
-                print panel_name
             elif type == "JobStatusPanel":
                 self.panels[panel_name] = JobStatusPanel(self)
             elif type == "move":
                 self.panels[panel_name] = MovePanel(self)
             elif type == "temperature":
                 self.panels[panel_name] = TemperaturePanel(self)
+            elif type == "fan":
+                self.panels[panel_name] = FanPanel(self)
+            elif type == "system":
+                self.panels[panel_name] = SystemPanel(self)
+            elif type == "zcalibrate":
+                self.panels[panel_name] = ZCalibratePanel(self)
             #Temporary for development
             else:
                 self.panels[panel_name] = MovePanel(self)
@@ -138,8 +165,9 @@ class KlipperScreen(Gtk.Window):
         panels = list(self._cur_panels)
         cur_item = self._find_current_menu_item(name, self._config, panels.pop(0))
         menu = cur_item['items']
-        print menu
-        self.show_panel("_".join(self._cur_panels) + '_' + name, "menu", 1, False, menu=menu)
+        print "#### Menu " + str(menu)
+        #self.show_panel("_".join(self._cur_panels) + '_' + name, "menu", 1, False, menu=menu)
+        self.show_panel(self._cur_panels[-1] + '_' + name, "menu", 1, False, menu=menu)
         return
 
         grid = self.arrangeMenuItems(menu, 4)
@@ -196,15 +224,15 @@ class KlipperScreen(Gtk.Window):
 
         elif action == "notify_status_update":
             #print data
-            if "idle_status" in self.panels:
+            if "main_panel" in self.panels:
                 if "heater_bed" in data:
-                    self.panels['idle_status'].update_temp(
+                    self.panels['main_panel'].update_temp(
                         "bed",
                         round(data['heater_bed']['temperature'],1),
                         round(data['heater_bed']['target'],1)
                     )
                 if "extruder" in data and data['extruder'] != "extruder":
-                    self.panels['idle_status'].update_temp(
+                    self.panels['main_panel'].update_temp(
                         "tool0",
                         round(data['extruder']['temperature'],1),
                         round(data['extruder']['target'],1)
@@ -236,6 +264,23 @@ class KlipperScreen(Gtk.Window):
                     if "progress" in data['virtual_sdcard']:
                         self.panels['job_status'].update_progress(data['virtual_sdcard']['progress'])
 
+            if "main_panel_Actions_Temperature" in self.panels:
+                if "heater_bed" in data:
+                    self.panels['main_panel_Actions_Temperature'].update_temp(
+                        "bed",
+                        round(data['heater_bed']['temperature'],1),
+                        round(data['heater_bed']['target'],1)
+                    )
+                if "extruder" in data and data['extruder'] != "extruder":
+                    self.panels['main_panel_Actions_Temperature'].update_temp(
+                        "tool0",
+                        round(data['extruder']['temperature'],1),
+                        round(data['extruder']['target'],1)
+                    )
+
+            if "main_panel_Configuration_ZOffsets" in self.panels:
+                if "toolhead" in data and "position" in data['toolhead']:
+                    self.panels['main_panel_Configuration_ZOffsets'].updatePosition(data['toolhead']['position'])
 
     def set_bed_temp (self, num, target):
         print str(num) + "C / " + str(target) + "C"
@@ -243,35 +288,7 @@ class KlipperScreen(Gtk.Window):
             return
         self.bed_temp_label.set_text(str(num) + "C / " + str(target) + "C")
 
-    def arrangeMenuItems (self, items, columns):
-        grid = Gtk.Grid()
-        grid.set_row_homogeneous(True)
-        grid.set_column_homogeneous(True)
 
-        l = len(items)
-        i = 0
-        print items
-        for i in range(l):
-            col = i % columns
-            row = round(i/columns, 0)
-            width = 1
-            #if i+1 == l and l%2 == 1:
-            #    width = 2
-            b = KlippyGtk.ButtonImage(
-                items[i]['icon'], items[i]['name'], "color"+str((i%4)+1)
-            )
-            if "items" in items[i]:
-                b.connect("clicked", self._go_to_submenu, i)
-            elif "method" in items[i]:
-                params = items[i]['params'] if "params" in items[i] else {}
-                b.connect("clicked", self._send_action, items[i]['method'], params)
-
-
-            grid.attach(b, col, row, 1, width)
-
-            i += 1
-
-        return grid
 
     def _send_action(self, widget, method, params):
         self._ws.send_method(method, params)
