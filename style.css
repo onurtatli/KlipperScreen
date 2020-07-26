@@ -124,10 +124,10 @@ button.file-list {
 
 .tempbutton {
   border: 3px solid #fff;
-  border-top: 3px solid #ccc;
-  border-bottom: 0px;
-  margin-top: 0;
-  margin-bottom: 0px;
+  border-left: 3px solid #ccc;
+  border-right: 0px;
+  margin-left: 0;
+  margin-right: 0px;
 }
 
 .tempbutton_bottom {
