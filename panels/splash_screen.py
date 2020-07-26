@@ -14,7 +14,7 @@ class SplashScreenPanel:
         self._screen = screen
 
 
-    def initialize(self):
+    def initialize(self, panel_name):
         image = Gtk.Image()
         #TODO: update file reference
         image.set_from_file("/opt/printer/OctoScreen/styles/z-bolt/images/logo.png")

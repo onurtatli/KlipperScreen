@@ -7,6 +7,7 @@ import threading
 import json
 import requests
 import websocket
+import logging
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
@@ -29,6 +30,8 @@ api = {
 }
 class KlippyWebsocket(threading.Thread):
     _req_id = 0
+    connected = False
+
     def __init__(self, callback):
         threading.Thread.__init__(self)
         self._callback = callback
@@ -44,23 +47,23 @@ class KlippyWebsocket(threading.Thread):
         token = json.loads(r.content)['result']
         self.ws_url = "ws://" + self._url + "/websocket?token=" + token
         self.ws = websocket.WebSocketApp(self.ws_url,
-            on_open = self.on_open,
             on_message = self.on_message,
             on_error = self.on_error,
             on_close = self.on_close,
         )
-        self.ws.on_open = self.on_open
+        self.ws.on_open = lambda ws: self.on_open(ws)
         self._wst = threading.Thread(target=self.ws.run_forever)
         self._wst.daemon = True
         self._wst.start()
 
+    def is_connected(self):
+        return self.connected
+
     def on_message(self, message):
         result = json.loads(message)
-        #print json.dumps(result, indent=2)
         GLib.idle_add(self._callback, result['method'], result['params'][0])
 
-    def send_method(self, method, params):
-        #print "{jsonrpc: \"2.0\", method: \"" + str(method) + "\", params: " + json.dumps(params) + ", id: \"2\"}"
+    def send_method(self, method, params={}):
         data = {
             "jsonrpc": "2.0",
             "method": method,
@@ -71,11 +74,12 @@ class KlippyWebsocket(threading.Thread):
         self.ws.send(json.dumps(data))
 
     def on_open(self, ws):
-        print "### ws open ###"
-        self.ws.send('{jsonrpc: "2.0", method: "post_printer_objects_subscription", params: {extruder: ["temperature","target"], toolhead: ["position", "status"]}, id: "1"}')
+        logging.info("### ws open ###")
+        self.connected = True
 
     def on_close(self, ws):
-        print "### ws closed ###"
+        logging.info("### ws closed ###")
+        self.connected = False
 
     def on_error(self, ws, error):
         print(error)

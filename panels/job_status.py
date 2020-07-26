@@ -4,15 +4,17 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 
 from KlippyGtk import KlippyGtk
+from screen_panel import ScreenPanel
 
-class JobStatusPanel:
+class JobStatusPanel(ScreenPanel):
     _screen = None
     labels = {}
 
     def __init__ (self, screen):
         self._screen = screen
+        self.filename = None
 
-    def initialize(self):
+    def initialize(self, panel_name):
         grid = Gtk.Grid()
         grid.set_row_homogeneous(True)
         grid.set_column_homogeneous(True)
@@ -31,13 +33,18 @@ class JobStatusPanel:
         info.props.valign = Gtk.Align.CENTER
         info.set_hexpand(True)
         info.set_vexpand(True)
-        info.add(self.labels['file']['b'])
-        info.add(self.labels['time']['b'])
+        #info.add(self.labels['file']['b'])
+        #info.add(self.labels['time']['b'])
         #info.add(self.labels['time_left']['b'])
 
-        grid.attach(info,2,0,2,1)
+        #grid.attach(info,2,0,2,1)
 
-        grid.attach(self.labels['progress'], 2, 1, 2, 1)
+        pbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        pbox.pack_start(self.labels['file']['b'], False, True, 0)
+        pbox.pack_end(self.labels['time']['b'], False, False, 0)
+        pbox.pack_end(self.labels['progress'], False, False, 0)
+
+        grid.attach(pbox, 2, 0, 2, 2)
 
         self.labels['tool0'] = KlippyGtk.ButtonImage("extruder-1", KlippyGtk.formatTemperatureString(0, 0))
         self.labels['tool0'].set_sensitive(False)
@@ -58,17 +65,13 @@ class JobStatusPanel:
         self.labels['stop'] = KlippyGtk.ButtonImage("stop","Stop","color2")
         grid.attach(self.labels['stop'], 2, 2, 1, 1)
         self.labels['control'] = KlippyGtk.ButtonImage("control","Control","color3")
+        self.labels['control'].connect("clicked", self._screen._go_to_submenu, "Control")
         grid.attach(self.labels['control'], 3, 2, 1, 1)
 
         self.grid = grid
 
-        return self.grid
-        #m.Grid().Attach(m.createInfoBox(), 3, 0, 2, 1)
-    	#m.Grid().Attach(m.createProgressBar(), 3, 1, 2, 1)
-    	#m.Grid().Attach(m.createPauseButton(), 2, 2, 1, 1)
-    	#m.Grid().Attach(m.createStopButton(), 3, 2, 1, 1)
-    	#m.Grid().Attach(m.createMenuButton(), 4, 2, 1, 1)
-    	#m.Grid().Attach(m.createCompleteButton(), 2, 2, 3, 1)
+        self._screen.add_subscription(panel_name)
+
 
     def get(self):
             return self.grid
@@ -82,6 +85,33 @@ class JobStatusPanel:
         self.grid.attach(self.labels['resume'], 1, 2, 1, 1)
         self.grid.remove(self.labels['pause'])
         self._screen.show_all()
+
+    def process_update(self, data):
+        if "heater_bed" in data:
+            self.update_temp(
+                "bed",
+                round(data['heater_bed']['temperature'],1),
+                round(data['heater_bed']['target'],1)
+            )
+        if "extruder" in data and data['extruder'] != "extruder":
+            self.update_temp(
+                "tool0",
+                round(data['extruder']['temperature'],1),
+                round(data['extruder']['target'],1)
+            )
+        if "virtual_sdcard" in data:
+            if "filename" in data['virtual_sdcard'] and self.filename != data['virtual_sdcard']['filename']:
+                if data['virtual_sdcard']['filename'] != "":
+                    self.filename = KlippyGtk.formatFileName(data['virtual_sdcard']['filename'])
+                    self.update_image_text("file", self.filename)
+                else:
+                    file = "Unknown"
+                    self.update_image_text("file", "Unknown")
+
+            if "print_duration" in data['virtual_sdcard']:
+                self.update_image_text("time", "Time: " +str(KlippyGtk.formatTimeString(data['virtual_sdcard']['print_duration'])))
+            if "progress" in data['virtual_sdcard']:
+                self.update_progress(data['virtual_sdcard']['progress'])
 
 
     def update_image_text(self, label, text):

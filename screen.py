@@ -7,6 +7,7 @@ import threading
 import json
 import requests
 import websocket
+import logging
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
@@ -15,7 +16,10 @@ from KlippyWebsocket import KlippyWebsocket
 from KlippyGtk import KlippyGtk
 from panels import *
 
+logging.basicConfig(filename="/tmp/KlipperScreen.log", level=logging.INFO)
+
 config = "/opt/printer/KlipperScreen/KlipperScreen.config"
+logging.info("Config file: " + config)
 
 class KlipperScreen(Gtk.Window):
     """ Class for creating a screen for Klipper via HDMI """
@@ -26,6 +30,8 @@ class KlipperScreen(Gtk.Window):
     panels = {}
     _cur_panels = []
     filename = ""
+    subscriptions = []
+    last_update = {}
 
     def __init__(self):
         self.read_config()
@@ -33,9 +39,9 @@ class KlipperScreen(Gtk.Window):
         Gtk.Window.__init__(self)
 
         self.set_default_size(Gdk.Screen.get_width(Gdk.Screen.get_default()), Gdk.Screen.get_height(Gdk.Screen.get_default()))
-        print str(Gdk.Screen.get_width(Gdk.Screen.get_default()))+"x"+str(Gdk.Screen.get_height(Gdk.Screen.get_default()))
+        logging.info(str(Gdk.Screen.get_width(Gdk.Screen.get_default()))+"x"+str(Gdk.Screen.get_height(Gdk.Screen.get_default())))
 
-        self.show_panel('splash_screen', "SplashScreenPanel")
+        self.printer_initializing()
 
         ready = False
 
@@ -52,23 +58,65 @@ class KlipperScreen(Gtk.Window):
                 continue
             ready = True
 
-        r = requests.get("http://127.0.0.1:7125/printer/status?toolhead")
+        status_objects = [
+            'idle_timeout',
+            'configfile',
+            'toolhead',
+            'virtual_sdcard'
+        ]
+        r = requests.get("http://127.0.0.1:7125/printer/objects/status?" + "&".join(status_objects))
         self.create_websocket()
+
+        requested_updates = {
+            "toolhead": [],
+            "virtual_sdcard": [],
+            "heater_bed": [],
+            "extruder": []
+        }
+
+        # Wait for websocket to be connected
+        # TODO: Find better way to do this
+        while self._ws.is_connected() == False:
+            continue
+
+        self._ws.send_method(
+            "post_printer_objects_subscription",
+            requested_updates
+        )
 
         #TODO: Check that we get good data
         data = json.loads(r.content)
+        for x in data:
+            self.last_update[x] = data[x]
 
-        if data['result']['toolhead']['status'] == "Printing":
-            self.show_panel('job_status',"JobStatusPanel")
+        self.printer_config = data['result']['configfile']['config']
+        self.read_printer_config()
+
+        if data['result']['toolhead']['status'] == "Printing" and data['result']['virtual_sdcard']['is_active'] == True:
+            self.printer_printing()
         else:
-            self.show_panel('main_panel',"MainPanel",2,items=self._config)
+            self.printer_ready()
 
+
+    def read_printer_config(self):
+        logging.info("### Reading printer config")
+        self.toolcount = 0
+        self.extrudercount = 0
+        for x in self.printer_config.keys():
+            if x.startswith('extruder'):
+                if x.startswith('extruder_stepper') or "shared_heater" in self.printer_config[x]:
+                    self.toolcount += 1
+                    continue
+                self.extrudercount += 1
+
+        logging.info("### Toolcount: " + str(self.toolcount) + " Heaters: " + str(self.extrudercount))
 
     def show_panel(self, panel_name, type, remove=None, pop=True, **kwargs):
         if remove == 2:
             self._remove_all_panels()
         elif remove == 1:
             self._remove_current_panel(pop)
+
         if panel_name not in self.panels:
             if type == "SplashScreenPanel":
                 self.panels[panel_name] = SplashScreenPanel(self)
@@ -76,28 +124,35 @@ class KlipperScreen(Gtk.Window):
                 self.panels[panel_name] = MainPanel(self)
             elif type == "menu":
                 self.panels[panel_name] = MenuPanel(self)
-                print panel_name
             elif type == "JobStatusPanel":
                 self.panels[panel_name] = JobStatusPanel(self)
             elif type == "move":
                 self.panels[panel_name] = MovePanel(self)
             elif type == "temperature":
                 self.panels[panel_name] = TemperaturePanel(self)
+            elif type == "fan":
+                self.panels[panel_name] = FanPanel(self)
+            elif type == "system":
+                self.panels[panel_name] = SystemPanel(self)
+            elif type == "zcalibrate":
+                self.panels[panel_name] = ZCalibratePanel(self)
             #Temporary for development
             else:
                 self.panels[panel_name] = MovePanel(self)
 
             if kwargs != {}:
-                print self.panels
-                print kwargs
-                self.panels[panel_name].initialize(**kwargs)
-            else :
-                self.panels[panel_name].initialize()
+                print type
+                self.panels[panel_name].initialize(panel_name, **kwargs)
+            else:
+                self.panels[panel_name].initialize(panel_name)
+
+            if hasattr(self.panels[panel_name],"process_update"):
+                self.panels[panel_name].process_update(self.last_update)
 
         self.add(self.panels[panel_name].get())
         self.show_all()
         self._cur_panels.append(panel_name)
-        print self._cur_panels
+        logging.info(self._cur_panels)
 
 
     def read_config (self):
@@ -115,15 +170,6 @@ class KlipperScreen(Gtk.Window):
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
 
-    def splash_screen(self):
-        if "splash_screen" not in self.panels:
-            self.panels['splash_screen'] = SplashScreenPanel(self)
-            self.panels['splash_screen'].initialize()
-
-        self.add(self.panels['splash_screen'].get())
-        self.show_all()
-        self._cur_panels = ['splash_screen']
-
     def create_websocket(self):
         self._ws = KlippyWebsocket(self._websocket_callback)
         self._ws.connect()
@@ -131,15 +177,22 @@ class KlipperScreen(Gtk.Window):
 
 
     def _go_to_submenu(self, widget, name):
-        print "#### Go to submenu " + str(name)
+        logging.info("#### Go to submenu " + str(name))
         #self._remove_current_panel(False)
 
         # Find current menu item
         panels = list(self._cur_panels)
-        cur_item = self._find_current_menu_item(name, self._config, panels.pop(0))
-        menu = cur_item['items']
+        if "job_status" not in self._cur_panels:
+            cur_item = self._find_current_menu_item(name, self._config['mainmenu'], panels.pop(0))
+            menu = cur_item['items']
+        else:
+            menu = self._config['printmenu']
+
+        logging.info("#### Menu " + str(menu))
+        #self.show_panel("_".join(self._cur_panels) + '_' + name, "menu", 1, False, menu=menu)
+
         print menu
-        self.show_panel("_".join(self._cur_panels) + '_' + name, "menu", 1, False, menu=menu)
+        self.show_panel(self._cur_panels[-1] + '_' + name, "menu", 1, False, items=menu)
         return
 
         grid = self.arrangeMenuItems(menu, 4)
@@ -165,9 +218,9 @@ class KlipperScreen(Gtk.Window):
         while len(self._cur_panels) > 0:
             self._remove_current_panel()
 
+
+
     def _remove_current_panel(self, pop=True):
-        print "1 " + str(self._cur_panels)
-        print self.panels.keys()
         if len(self._cur_panels) > 0:
             self.remove(
                 self.panels[
@@ -175,128 +228,69 @@ class KlipperScreen(Gtk.Window):
                 ].get()
             )
             if pop == True:
-                print "Popping _cur_panels"
                 self._cur_panels.pop()
                 if len(self._cur_panels) > 0:
                     self.add(self.panels[self._cur_panels[-1]].get())
                     self.show_all()
 
     def _menu_go_back (self, widget):
-        print "#### Menu go back"
+        logging.info("#### Menu go back")
         self._remove_current_panel()
 
+
+    def add_subscription (self, panel_name):
+        add = True
+        for sub in self.subscriptions:
+            if sub == panel_name:
+                return
+
+        self.subscriptions.append(panel_name)
+
+    def remove_subscription (self, panel_name):
+        for i in range(len(self.subscriptions)):
+            if self.subscriptions[i] == panel_name:
+                self.subscriptions.pop(i)
+                return
+
     def _websocket_callback(self, action, data):
+        print json.dumps(data, indent=2)
+
+        for x in data:
+            self.last_update[x] = data[x]
+
         if action == "notify_klippy_state_changed":
             if data == "ready":
-                print "### Going to ready state"
+                logging.info("### Going to ready state")
                 self.printer_ready()
             elif data == "disconnect" or data == "shutdown":
-                print "### Going to disconnected state"
+                logging.info("### Going to disconnected state")
                 self.printer_initializing()
 
         elif action == "notify_status_update":
-            #print data
-            if "idle_status" in self.panels:
-                if "heater_bed" in data:
-                    self.panels['idle_status'].update_temp(
-                        "bed",
-                        round(data['heater_bed']['temperature'],1),
-                        round(data['heater_bed']['target'],1)
-                    )
-                if "extruder" in data and data['extruder'] != "extruder":
-                    self.panels['idle_status'].update_temp(
-                        "tool0",
-                        round(data['extruder']['temperature'],1),
-                        round(data['extruder']['target'],1)
-                    )
-            if "job_status" in self.panels:
-                #print json.dumps(data, indent=2)
-                if "heater_bed" in data:
-                    self.panels['job_status'].update_temp(
-                        "bed",
-                        round(data['heater_bed']['temperature'],1),
-                        round(data['heater_bed']['target'],1)
-                    )
-                if "extruder" in data and data['extruder'] != "extruder":
-                    self.panels['job_status'].update_temp(
-                        "tool0",
-                        round(data['extruder']['temperature'],1),
-                        round(data['extruder']['target'],1)
-                    )
-                if "virtual_sdcard" in data:
-                    print data['virtual_sdcard']
-                    if "current_file" in data['virtual_sdcard'] and self.filename != data['virtual_sdcard']['current_file']:
-                        if data['virtual_sdcard']['current_file'] != "":
-                            file = KlippyGtk.formatFileName(data['virtual_sdcard']['current_file'])
-                        else:
-                            file = "Unknown"
-                        #self.panels['job_status'].update_image_text("file", file)
-                    if "print_duration" in data['virtual_sdcard']:
-                        self.panels['job_status'].update_image_text("time", "Time: " +KlippyGtk.formatTimeString(data['virtual_sdcard']['print_duration']))
-                    if "progress" in data['virtual_sdcard']:
-                        self.panels['job_status'].update_progress(data['virtual_sdcard']['progress'])
+            if "virtual_sdcard" in data:
+                if data['virtual_sdcard']['is_active'] == True and "job_status" not in self._cur_panels:
+                    self.printer_printing()
+                elif data['virtual_sdcard']['is_active'] == False and "job_status" in self._cur_panels:
+                    self.printer_ready()
+                #if "job_panels" in self._cur_panels and :
+            for sub in self.subscriptions:
+                self.panels[sub].process_update(data)
 
-
-    def set_bed_temp (self, num, target):
-        print str(num) + "C / " + str(target) + "C"
-        if self.bed_temp_label == None:
-            return
-        self.bed_temp_label.set_text(str(num) + "C / " + str(target) + "C")
-
-    def arrangeMenuItems (self, items, columns):
-        grid = Gtk.Grid()
-        grid.set_row_homogeneous(True)
-        grid.set_column_homogeneous(True)
-
-        l = len(items)
-        i = 0
-        print items
-        for i in range(l):
-            col = i % columns
-            row = round(i/columns, 0)
-            width = 1
-            #if i+1 == l and l%2 == 1:
-            #    width = 2
-            b = KlippyGtk.ButtonImage(
-                items[i]['icon'], items[i]['name'], "color"+str((i%4)+1)
-            )
-            if "items" in items[i]:
-                b.connect("clicked", self._go_to_submenu, i)
-            elif "method" in items[i]:
-                params = items[i]['params'] if "params" in items[i] else {}
-                b.connect("clicked", self._send_action, items[i]['method'], params)
-
-
-            grid.attach(b, col, row, 1, width)
-
-            i += 1
-
-        return grid
 
     def _send_action(self, widget, method, params):
         self._ws.send_method(method, params)
 
     def printer_initializing(self):
-        self._remove_all_panels()
-        self.splash_screen()
+        self.show_panel('splash_screen',"SplashScreenPanel", 2)
 
     def printer_ready(self):
-        self._remove_all_panels()
-        self.show_panel('main_panel',"MainPanel",2,items=self._config)
+        self.show_panel('main_panel', "MainPanel", 2, items=self._config['mainmenu'], extrudercount=self.extrudercount)
 
-    def on_button1_clicked(self, widget):
-        print("Hello")
-
-    def on_button2_clicked(self, widget):
-        print("Goodbye")
+    def printer_printing(self):
+        self.show_panel('job_status',"JobStatusPanel", 2)
 
 
 win = KlipperScreen()
 win.connect("destroy", Gtk.main_quit)
 win.show_all()
 Gtk.main()
-
-#win = KlipperScreen()
-#win.connect("destroy", Gtk.main_quit)
-#win.show_all()
-#Gtk.main()

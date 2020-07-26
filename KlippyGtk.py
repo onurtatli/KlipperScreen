@@ -42,8 +42,15 @@ class KlippyGtk:
         return bar
 
     @staticmethod
-    def ButtonImage(image_name, label, style=False):
-        img = Gtk.Image.new_from_file("/opt/printer/OctoScreen/styles/z-bolt/images/" + str(image_name) + ".svg")
+    def ButtonImage(image_name, label, style=False, height=None, width=None):
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file("/opt/printer/OctoScreen/styles/z-bolt/images/" + str(image_name) + ".svg")
+
+        if height != None and width != None:
+            print "Scaling"
+            pixbuf = pixbuf.scale_simple(width, height, GdkPixbuf.InterpType.BILINEAR)
+
+
+        img = Gtk.Image.new_from_pixbuf(pixbuf)
 
         b = Gtk.Button(label=label)
         #b.props.relief = Gtk.RELIEF_NONE
@@ -60,6 +67,33 @@ class KlippyGtk:
             ctx.add_class(style)
 
         return b
+
+    @staticmethod
+    def ToggleButtonImage(image_name, label, style=False):
+        img = Gtk.Image.new_from_file("/opt/printer/OctoScreen/styles/z-bolt/images/" + str(image_name) + ".svg")
+
+        b = Gtk.ToggleButton(label=label)
+        #b.props.relief = Gtk.RELIEF_NONE
+        b.set_image(img)
+        b.set_hexpand(True)
+        b.set_vexpand(True)
+        b.set_can_focus(False)
+        b.set_image_position(Gtk.PositionType.TOP)
+        b.set_always_show_image(True)
+        b.props.relief = Gtk.ReliefStyle.NONE
+
+        if style != False:
+            ctx = b.get_style_context()
+            ctx.add_class(style)
+
+        return b
+
+    @staticmethod
+    def HomogeneousGrid():
+        g = Gtk.Grid()
+        g.set_row_homogeneous(True)
+        g.set_column_homogeneous(True)
+        return g
 
     @staticmethod
     def ToggleButton(text):
