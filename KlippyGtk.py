@@ -3,6 +3,8 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib
+import os
+klippersreendir = os.getcwd()
 
 class KlippyGtk:
     labels = {}
@@ -14,9 +16,9 @@ class KlippyGtk:
         box1 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=15)
         image = Gtk.Image()
         #TODO: update file reference
-        image.set_from_file("/opt/printer/OctoScreen/styles/z-bolt/images/" + str(image_name) + ".svg")
+        image.set_from_file(klippersreendir + "/styles/z-bolt/images/" + str(image_name) + ".svg")
 
-        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale("/opt/printer/OctoScreen/styles/z-bolt/images/" + str(image_name) + ".svg", 20, 20, True)
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(klippersreendir + "/styles/z-bolt/images/" + str(image_name) + ".svg", 20, 20, True)
         image.set_from_pixbuf(pixbuf)
 
         label = Gtk.Label()
@@ -43,7 +45,7 @@ class KlippyGtk:
 
     @staticmethod
     def ButtonImage(image_name, label, style=False, height=None, width=None):
-        pixbuf = GdkPixbuf.Pixbuf.new_from_file("/opt/printer/OctoScreen/styles/z-bolt/images/" + str(image_name) + ".svg")
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file(klippersreendir + "/styles/z-bolt/images/" + str(image_name) + ".svg")
 
         if height != None and width != None:
             print "Scaling"
@@ -70,7 +72,7 @@ class KlippyGtk:
 
     @staticmethod
     def ToggleButtonImage(image_name, label, style=False):
-        img = Gtk.Image.new_from_file("/opt/printer/OctoScreen/styles/z-bolt/images/" + str(image_name) + ".svg")
+        img = Gtk.Image.new_from_file(klippersreendir + "/styles/z-bolt/images/" + str(image_name) + ".svg")
 
         b = Gtk.ToggleButton(label=label)
         #b.props.relief = Gtk.RELIEF_NONE

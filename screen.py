@@ -8,6 +8,7 @@ import json
 import requests
 import websocket
 import logging
+import os
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
@@ -18,7 +19,8 @@ from panels import *
 
 logging.basicConfig(filename="/tmp/KlipperScreen.log", level=logging.INFO)
 
-config = "/opt/printer/KlipperScreen/KlipperScreen.config"
+klippersreendir = os.getcwd()
+config = klippersreendir + "/KlipperScreen.config"
 logging.info("Config file: " + config)
 
 class KlipperScreen(Gtk.Window):
@@ -76,6 +78,7 @@ class KlipperScreen(Gtk.Window):
 
         # Wait for websocket to be connected
         # TODO: Find better way to do this
+        print "### Waiting for websocket"
         while self._ws.is_connected() == False:
             continue
 
@@ -253,7 +256,7 @@ class KlipperScreen(Gtk.Window):
                 return
 
     def _websocket_callback(self, action, data):
-        print json.dumps(data, indent=2)
+        #print json.dumps(data, indent=2)
 
         for x in data:
             self.last_update[x] = data[x]

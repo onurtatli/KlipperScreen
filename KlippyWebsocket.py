@@ -41,7 +41,7 @@ class KlippyWebsocket(threading.Thread):
     def connect (self):
         r = requests.get("http://" + self._url + api['oneshot_token']['url'], headers={"x-api-key":api_key})
         if r.status_code != 200:
-            print "Failed to retrieve oneshot token"
+            logging.info("Failed to retrieve oneshot token")
             return
 
         token = json.loads(r.content)['result']
