@@ -38,7 +38,9 @@ hdmi_drive=2
 
 After changing _/boot/config.txt_ you must reboot your raspberry pi. Please also ensure you followed setting up your screen via the screen instructions. This will likely have a xorg.conf.d file for inputs that you need to create.
 
-Once that is done, follow the [Moonraker installation instructions](https://github.com/Arksine/moonraker/blob/master/docs/installation.md) to install the latest version of moonraker. _NOTE: If you are using MainSail, you will need to utilize the latest source as the latest master branch of moonraker is incompatible with the latest release of MainSail_
+Once that is done, follow the [Moonraker installation instructions](https://github.com/Arksine/moonraker/blob/master/docs/installation.md) to install the latest version of moonraker.
+
+Using sudo, then run the service install script under _scripts/install_service.sh_ and perform _sudo systemctl daemon-reload_. You can then start KlipperScreen with systemctl such as _systemctl start KlipperScreen_
 
 
 
