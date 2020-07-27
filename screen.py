@@ -76,17 +76,6 @@ class KlipperScreen(Gtk.Window):
             "extruder": []
         }
 
-        # Wait for websocket to be connected
-        # TODO: Find better way to do this
-        print "### Waiting for websocket"
-        while self._ws.is_connected() == False:
-            continue
-
-        self._ws.send_method(
-            "post_printer_objects_subscription",
-            requested_updates
-        )
-
         #TODO: Check that we get good data
         data = json.loads(r.content)
         for x in data:
@@ -99,6 +88,14 @@ class KlipperScreen(Gtk.Window):
             self.printer_printing()
         else:
             self.printer_ready()
+
+        while (self._ws.is_connected() == False):
+            continue
+
+        self._ws.send_method(
+            "post_printer_objects_subscription",
+            requested_updates
+        )
 
 
     def read_printer_config(self):
@@ -127,6 +124,8 @@ class KlipperScreen(Gtk.Window):
                 self.panels[panel_name] = MainPanel(self)
             elif type == "menu":
                 self.panels[panel_name] = MenuPanel(self)
+            elif type == "extrude":
+                self.panels[panel_name] = ExtrudePanel(self)
             elif type == "JobStatusPanel":
                 self.panels[panel_name] = JobStatusPanel(self)
             elif type == "move":

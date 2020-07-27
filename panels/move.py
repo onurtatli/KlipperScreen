@@ -1,20 +1,16 @@
 import gi
+import logging
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 
 from KlippyGtk import KlippyGtk
 from KlippyGcodes import KlippyGcodes
+from screen_panel import ScreenPanel
 
-class MovePanel:
-    _screen = None
-    labels = {}
+class MovePanel(ScreenPanel):
     distance = 1
     distances = ['.1','.5','1','5','10','25']
-
-
-    def __init__(self, screen):
-        self._screen = screen
 
 
     def initialize(self, panel_name):
@@ -80,10 +76,7 @@ class MovePanel:
         b.connect("clicked", self._screen._menu_go_back)
         grid.attach(b, 3, 2, 1, 1)
 
-        self.grid = grid
-
-    def get(self):
-        return self.grid
+        self.panel = grid
 
     def home(self, widget):
         self._screen._ws.send_method("post_printer_gcode", {"script": KlippyGcodes.HOME})
@@ -91,7 +84,7 @@ class MovePanel:
     def change_distance(self, widget, distance):
         if self.distance == distance:
             return
-        print "### Distance " + str(distance)
+        logging.info("### Distance " + str(distance))
 
         ctx = self.labels[str(self.distance)].get_style_context()
         ctx.remove_class("distbutton_active")
@@ -106,7 +99,7 @@ class MovePanel:
 
     def move(self, widget, axis, dir):
         dist = str(self.distance) if dir == "+" else "-" + str(self.distance)
-        print "# Moving " + axis + " " + dist + "mm"
+        logging.info("# Moving " + axis + " " + dist + "mm")
 
 
         self._screen._ws.send_method("post_printer_gcode_script", {"script": KlippyGcodes.MOVE_RELATIVE})

@@ -44,7 +44,7 @@ class JobStatusPanel(ScreenPanel):
         pbox.pack_end(self.labels['time']['b'], False, False, 0)
         pbox.pack_end(self.labels['progress'], False, False, 0)
 
-        grid.attach(pbox, 2, 0, 2, 2)
+        grid.attach(pbox, 2, 0, 3, 2)
 
         self.labels['tool0'] = KlippyGtk.ButtonImage("extruder-1", KlippyGtk.formatTemperatureString(0, 0))
         self.labels['tool0'].set_sensitive(False)
@@ -64,9 +64,12 @@ class JobStatusPanel(ScreenPanel):
         grid.attach(self.labels['pause'], 1, 2, 1, 1)
         self.labels['stop'] = KlippyGtk.ButtonImage("stop","Stop","color2")
         grid.attach(self.labels['stop'], 2, 2, 1, 1)
+        self.labels['estop'] = KlippyGtk.ButtonImage("decrease","Emergency Stop","color4")
+        #self.labels['estop']
+        grid.attach(self.labels['estop'], 3, 2, 1, 1)
         self.labels['control'] = KlippyGtk.ButtonImage("control","Control","color3")
         self.labels['control'].connect("clicked", self._screen._go_to_submenu, "Control")
-        grid.attach(self.labels['control'], 3, 2, 1, 1)
+        grid.attach(self.labels['control'], 4, 2, 1, 1)
 
         self.grid = grid
 

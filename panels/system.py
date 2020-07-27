@@ -6,15 +6,9 @@ from gi.repository import Gtk, Gdk, GLib
 
 from KlippyGtk import KlippyGtk
 from KlippyGcodes import KlippyGcodes
+from screen_panel import ScreenPanel
 
-class SystemPanel:
-    _screen = None
-    labels = {}
-
-    def __init__(self, screen):
-        self._screen = screen
-
-
+class SystemPanel(ScreenPanel):
     def initialize(self, panel_name):
         # Create gtk items here
 
@@ -47,9 +41,4 @@ class SystemPanel:
         grid.attach(firmrestart, 1, 2, 1, 1)
         grid.attach(back, 3, 2, 1, 1)
 
-        self.grid = grid
-
-
-    def get(self):
-        # Return gtk item
-        return self.grid
+        self.panel = grid

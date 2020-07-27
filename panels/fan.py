@@ -5,15 +5,9 @@ from gi.repository import Gtk, Gdk, GLib
 
 from KlippyGtk import KlippyGtk
 from KlippyGcodes import KlippyGcodes
+from screen_panel import ScreenPanel
 
-class FanPanel:
-    _screen = None
-    labels = {}
-
-    def __init__(self, screen):
-        self._screen = screen
-
-
+class FanPanel(ScreenPanel):
     def initialize(self, panel_name):
         # Create gtk items here
         grid = KlippyGtk.HomogeneousGrid()
@@ -44,13 +38,7 @@ class FanPanel:
         b.connect("clicked", self._screen._menu_go_back)
         grid.attach(b,3,2,1,1)
 
-        self.grid = grid
-
-
-
-    def get(self):
-        # Return gtk item
-        return self.grid
+        self.panel = grid
 
     def set_fan_speed(self, widget):
         self._screen._ws.send_method("post_printer_gcode_script", {"script": KlippyGcodes.set_fan_speed(self.labels['scale'].get_value())})

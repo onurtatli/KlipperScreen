@@ -9,6 +9,9 @@ class KlippyGcodes:
     MOVE_ABSOLUTE   = "G90"
     MOVE_RELATIVE   = "G91"
 
+    EXTRUDE_ABS     = "M82"
+    EXTRUDE_REL     = "M83"
+
     SET_EXT_TEMP    = "M104"
     MAX_EXT_TEMP    = 300
 
@@ -41,3 +44,7 @@ class KlippyGcodes:
     @staticmethod
     def probe_move(dist):
         return KlippyGcodes.PROBE_MOVE + dist
+
+    @staticmethod
+    def extrude(dist, speed=500):
+        return KlippyGcodes.MOVE + " E" + dist + " F" + speed
