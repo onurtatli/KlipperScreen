@@ -6,7 +6,7 @@ from gi.repository import Gtk, Gdk, GLib
 
 from KlippyGtk import KlippyGtk
 from KlippyGcodes import KlippyGcodes
-from screen_panel import ScreenPanel
+from panels.screen_panel import ScreenPanel
 
 class ExtrudePanel(ScreenPanel):
     distance = 1
@@ -103,7 +103,7 @@ class ExtrudePanel(ScreenPanel):
             self.update_temp(
                 "tool0",
                 round(data['extruder']['temperature'],1),
-                round(data['extruder']['target'],1)
+                round(data['extruder']['temperature'],1)
             )
 
     def change_distance(self, widget, distance):
@@ -139,7 +139,7 @@ class ExtrudePanel(ScreenPanel):
     def extrude(self, widget, dir):
         dist = str(self.distance) if dir == "+" else "-" + str(self.distance)
         speed = self.speed_trans[self.speed]
-        print KlippyGcodes.extrude(dist, speed)
+        print(KlippyGcodes.extrude(dist, speed))
 
         self._screen._ws.send_method("post_printer_gcode_script", {"script": KlippyGcodes.EXTRUDE_REL})
         self._screen._ws.send_method("post_printer_gcode_script", {"script": KlippyGcodes.extrude(dist, speed)})

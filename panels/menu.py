@@ -4,11 +4,11 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 
 from KlippyGtk import KlippyGtk
-from screen_panel import ScreenPanel
+from panels.screen_panel import ScreenPanel
 
 class MenuPanel(ScreenPanel):
     def initialize(self, panel_name, items):
-        print "### Making a new menu"
+        print("### Making a new menu")
 
         grid = self.arrangeMenuItems(items, 4)
 
@@ -27,7 +27,7 @@ class MenuPanel(ScreenPanel):
         i = 0
         for i in range(l):
             col = i % columns
-            row = round(i/columns, 0)
+            row = int(i/columns)
             width = 1
             if expandLast == True and i+1 == l and l%2 == 1:
                 width = 2
@@ -46,7 +46,5 @@ class MenuPanel(ScreenPanel):
             grid.attach(b, col, row, width, 1)
 
             i += 1
-        print b.get_style_context()
-        print b.get_default_style()
 
         return grid

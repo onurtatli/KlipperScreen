@@ -21,7 +21,7 @@ class ScreenPanel:
         return self.panel
 
     def menu_item_clicked(self, widget, panel, item):
-        print "### Creating panel "+ item['panel']
+        print("### Creating panel "+ item['panel'])
         if "items" in item:
             self._screen.show_panel(self._screen._cur_panels[-1] + '_' + item['name'], item['panel'], 1, False, items=item['items'])
             return
@@ -32,5 +32,5 @@ class ScreenPanel:
             self.labels[label]['l'].set_text(text)
 
     def update_temp(self, dev, temp, target):
-        if self.labels.has_key(dev):
+        if dev in self.labels:
             self.labels[dev].set_label(KlippyGtk.formatTemperatureString(temp, target))

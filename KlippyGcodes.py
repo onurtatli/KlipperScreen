@@ -26,6 +26,8 @@ class KlippyGcodes:
     PROBE_ACCEPT    = "ACCEPT"
 
     SAVE_CONFIG     = "SAVE_CONFIG"
+    RESTART         = "RESTART"
+    FIRMWARE_RESTART= "FIRMWARE_RESTART"
 
 
     @staticmethod

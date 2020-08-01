@@ -5,7 +5,7 @@ from gi.repository import Gtk, Gdk, GLib
 
 from KlippyGtk import KlippyGtk
 from KlippyGcodes import KlippyGcodes
-from screen_panel import ScreenPanel
+from panels.screen_panel import ScreenPanel
 
 class ExamplePanel(ScreenPanel):
     def initialize(self, panel_name):

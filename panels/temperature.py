@@ -6,20 +6,19 @@ from gi.repository import Gtk, Gdk, GLib
 
 from KlippyGtk import KlippyGtk
 from KlippyGcodes import KlippyGcodes
-from screen_panel import ScreenPanel
+from panels.screen_panel import ScreenPanel
 
 
 class TemperaturePanel(ScreenPanel):
     active_heater = "tool0"
     tempdeltas = ["1","5","10","25"]
     tempdelta = "10"
+    target_temps = {
+        "bed": 0
+    }
 
     def initialize(self, panel_name):
         grid = KlippyGtk.HomogeneousGrid()
-
-        self.target_temps = {
-            "bed": 0
-        }
 
         eq_grid = KlippyGtk.HomogeneousGrid()
         for i in range(self._screen.extrudercount):
@@ -122,9 +121,9 @@ class TemperaturePanel(ScreenPanel):
         for i in range(len(keys)):
             id = 'button_' + str(keys[i][0])
             if keys[i][0] == "B":
-                self.labels[id] = KlippyGtk.ButtonImage("backspace", None, False)
+                self.labels[id] = KlippyGtk.ButtonImage("backspace")
             elif keys[i][0] == "E":
-                self.labels[id] = KlippyGtk.ButtonImage("complete", None, False, 40, 40)
+                self.labels[id] = KlippyGtk.ButtonImage("complete", None, None, 40, 40)
             else:
                 self.labels[id] = Gtk.Button(keys[i][0])
             self.labels[id].connect('clicked', self.update_entry, keys[i][0])
@@ -176,12 +175,14 @@ class TemperaturePanel(ScreenPanel):
 
     def process_update(self, data):
         if "heater_bed" in data:
+            self.target_temps["bed"] = data['heater_bed']['target']
             self.update_temp(
                 "bed",
                 round(data['heater_bed']['temperature'],1),
                 round(data['heater_bed']['target'],1)
                 )
         if "extruder" in data and data['extruder'] != "extruder":
+            self.target_temps["tool0"] = data['extruder']['target']
             self.update_temp(
                 "tool0",
                 round(data['extruder']['temperature'],1),

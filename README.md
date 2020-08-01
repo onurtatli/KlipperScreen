@@ -3,6 +3,7 @@ KlipperScreen is an idea based from [OctoScreen](https://github.com/Z-Bolt/OctoS
 
 Currently working features:
  - Homing
+ - Preheating
  - Job Status and control
  - Temperature control
  - Extrude control
@@ -11,18 +12,22 @@ Currently working features:
  - Configure Z Offset using PROBE_CALIBRATE
 
 Working on:
- - Z Babystepping
+ - Print tuning (Z Babystepping, Speed Control, Flow Control)
  - Better system panel
  - Wifi selection
  - Manual bed leveling assist
- - Printing from virtual SD Card
  - Using thumbnails from prusa on job status page
 
 
 More details to come...
 
-
 ### Installation
+Run _scripts/KlipperScreen-install.sh_
+This script will install packages that are listed under manual install, create a
+python virtual environment at ${HOME}/.KlipperScreen-env and install a systemd
+service file. 
+
+### Manual Installation
 ```
 sudo apt install -y xserver-xorg-video-fbturbo xinit xinput x11-xserver-utils python-gi python-gi-cairo gir1.2-gtk-3.0 python-requests python-websocket
 ```

@@ -102,7 +102,7 @@ class ZCalibratePanel:
     def change_distance(self, widget, distance):
         if self.distance == distance:
             return
-        print "### Distance " + str(distance)
+        print("### Distance " + str(distance))
 
         ctx = self.labels[str(self.distance)].get_style_context()
         ctx.remove_class("distbutton_active")
@@ -117,7 +117,7 @@ class ZCalibratePanel:
 
     def move(self, widget, dir):
         dist = str(self.distance) if dir == "+" else "-" + str(self.distance)
-        print "# Moving " + KlippyGcodes.probe_move(dist)
+        print("# Moving " + KlippyGcodes.probe_move(dist))
         self._screen._ws.send_method("post_printer_gcode_script", {"script": KlippyGcodes.probe_move(dist)})
 
     def abort(self, widget):

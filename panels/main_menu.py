@@ -4,12 +4,12 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 
 from KlippyGtk import KlippyGtk
-from menu import MenuPanel
+from panels.menu import MenuPanel
 
 class MainPanel(MenuPanel):
 
     def initialize(self, panel_name, items, extrudercount):
-        print "### Making MainMenu"
+        print("### Making MainMenu")
         grid = KlippyGtk.HomogeneousGrid()
 
         # Create Extruders and bed icons
@@ -36,7 +36,7 @@ class MainPanel(MenuPanel):
         return self.grid
 
     def update_temp(self, dev, temp, target):
-        if self.labels.has_key(dev):
+        if dev in self.labels:
             self.labels[dev].set_label(KlippyGtk.formatTemperatureString(temp, target))
 
     def process_update(self, data):
