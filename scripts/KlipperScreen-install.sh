@@ -23,9 +23,10 @@ install_packages()
 create_virtualenv()
 {
     echo "Creating virtual environment"
-    [ ! -d ${PYTHONDIR} ] && virtualenv -p /usr/bin/python3 ${PYTHONDIR}
+    [ ! -d ${KSENV} ] && virtualenv -p /usr/bin/python3 ${KSENV}
 
-    ${PYTHONDIR}/bin/pip install -r ${SRCDIR}/scripts/KlipperScreen-requirements.txt
+    ${KSENV}/bin/pip install -r ${KSPATH}/scripts/KlipperScreen-requirements.txt
+    ${KSENV}/bin/vext -i ${KSENV}/gi.vext
 }
 
 install_systemd_service()
@@ -44,6 +45,6 @@ install_systemd_service()
 }
 
 
-install_packages
+#install_packages
 create_virtualenv
 install_systemd_service

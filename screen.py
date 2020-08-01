@@ -11,14 +11,9 @@ import logging
 import os
 import asyncio
 
-import tornado
-from tornado.ioloop import IOLoop, PeriodicCallback
-
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
-
-from gioloop import GtkIOLoop
 
 from KlippyWebsocket import KlippyWebsocket
 from KlippyRest import KlippyRest
