@@ -208,7 +208,7 @@ class KlipperScreen(Gtk.Window):
 
     def init_style(self):
         style_provider = Gtk.CssProvider()
-        style_provider.load_from_path("/opt/printer/KlipperScreen/style.css")
+        style_provider.load_from_path(klipperscreendir + "/style.css")
 
         Gtk.StyleContext.add_provider_for_screen(
             Gdk.Screen.get_default(),
