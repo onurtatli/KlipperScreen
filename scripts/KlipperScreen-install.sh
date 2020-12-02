@@ -15,9 +15,12 @@ install_packages()
         xinit \
         xinput \
         x11-xserver-utils \
+        python3-distutils \
         python3-gi \
         python3-gi-cairo \
-        gir1.2-gtk-3.0
+        python3-virtualenv \
+        gir1.2-gtk-3.0 \
+        virtualenv
 }
 
 create_virtualenv()
@@ -26,7 +29,8 @@ create_virtualenv()
     [ ! -d ${KSENV} ] && virtualenv -p /usr/bin/python3 ${KSENV}
 
     ${KSENV}/bin/pip install -r ${KSPATH}/scripts/KlipperScreen-requirements.txt
-    ${KSENV}/bin/vext -i ${KSENV}/gi.vext
+    ${KSENV}/bin/pip install --no-binary ":all" "vext.gi==0.7.4"
+    ${KSENV}/bin/vext -e
 }
 
 install_systemd_service()
@@ -37,6 +41,7 @@ install_systemd_service()
     KSPATH_ESC=$(sed "s/\//\\\\\//g" <<< $KSPATH)
     KSENV_ESC=$(sed "s/\//\\\\\//g" <<< $KSENV)
 
+    SERVICE=$(sed "s/KS_USER/$USER/g" <<< $SERVICE)
     SERVICE=$(sed "s/KS_ENV/$KSENV_ESC/g" <<< $SERVICE)
     SERVICE=$(sed "s/KS_DIR/$KSPATH_ESC/g" <<< $SERVICE)
 
@@ -44,7 +49,18 @@ install_systemd_service()
     sudo systemctl daemon-reload
 }
 
+update_x11()
+{
+    echo "Updating X11 configuration"
+    sudo sed -i 's/allowed_users=console/allowed_users=anybody/g' /etc/X11/Xwrapper.config
+}
 
-#install_packages
+start_KlipperScreen() {
+    sudo systemctl start KlipperScreen
+}
+
+install_packages
 create_virtualenv
 install_systemd_service
+update_x11
+start_KlipperScreen

@@ -4,36 +4,39 @@ import logging
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 
-from KlippyGtk import KlippyGtk
-from KlippyGcodes import KlippyGcodes
-from panels.screen_panel import ScreenPanel
+from ks_includes.KlippyGtk import KlippyGtk
+from ks_includes.KlippyGcodes import KlippyGcodes
+from ks_includes.screen_panel import ScreenPanel
+
+logger = logging.getLogger("KlipperScreen.ExtrudePanel")
+
+def create_panel(*args):
+    return ExtrudePanel(*args)
 
 class ExtrudePanel(ScreenPanel):
     distance = 1
     distances = ['1','5','10','25']
-    speed = "Medium"
-    speeds = ["Slow", "Medium", "Fast"]
-    speed_trans = {
-        "Slow": "300",
-        "Medium": "800",
-        "Fast": "1400"
-    }
-
 
     def initialize(self, panel_name):
+        _ = self.lang.gettext
+
+        self.speed = _("Medium")
+        self.speeds = [_("Slow"), _("Medium"), _("Fast")]
+        self.speed_trans = {
+            _("Slow"): "300",
+            _("Medium"): "800",
+            _("Fast"): "1400"
+        }
 
         grid = KlippyGtk.HomogeneousGrid()
 
-
-
-
-        self.labels['tool0'] = KlippyGtk.ButtonImage("extruder-1","Tool 1","color1")
+        self.labels['tool0'] = KlippyGtk.ButtonImage("extruder-1",_("Tool 1"),"color1")
         self.labels['tool0'].get_style_context().add_class("button_active")
-        self.labels['extrude'] = KlippyGtk.ButtonImage("extrude","Extrude","color3")
+        self.labels['extrude'] = KlippyGtk.ButtonImage("extrude",_("Extrude"),"color3")
         self.labels['extrude'].connect("clicked", self.extrude, "+")
-        self.labels['retract'] = KlippyGtk.ButtonImage("extrude","Retract","color2")
+        self.labels['retract'] = KlippyGtk.ButtonImage("retract",_("Retract"),"color2")
         self.labels['retract'].connect("clicked", self.extrude, "-")
-        self.labels['temperature'] = KlippyGtk.ButtonImage("heat-up","Temperature","color4")
+        self.labels['temperature'] = KlippyGtk.ButtonImage("heat-up",_("Temperature"),"color4")
         self.labels['temperature'].connect("clicked", self.menu_item_clicked, "temperature", {
             "name": "Temperature",
             "panel": "temperature"
@@ -98,12 +101,11 @@ class ExtrudePanel(ScreenPanel):
         self.panel = grid
         self._screen.add_subscription(panel_name)
 
-    def process_update(self, data):
-        if "extruder" in data and data['extruder'] != "extruder":
-            self.update_temp(
-                "tool0",
-                round(data['extruder']['temperature'],1),
-                round(data['extruder']['temperature'],1)
+    def process_update(self, action, data):
+        for x in self._printer.get_tools():
+            self.update_temp(x,
+                self._printer.get_dev_stat(x,"temperature"),
+                self._printer.get_dev_stat(x,"target")
             )
 
     def change_distance(self, widget, distance):
@@ -141,5 +143,5 @@ class ExtrudePanel(ScreenPanel):
         speed = self.speed_trans[self.speed]
         print(KlippyGcodes.extrude(dist, speed))
 
-        self._screen._ws.send_method("post_printer_gcode_script", {"script": KlippyGcodes.EXTRUDE_REL})
-        self._screen._ws.send_method("post_printer_gcode_script", {"script": KlippyGcodes.extrude(dist, speed)})
+        self._screen._ws.klippy.gcode_script(KlippyGcodes.EXTRUDE_REL)
+        self._screen._ws.klippy.gcode_script(KlippyGcodes.extrude(dist, speed))

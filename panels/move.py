@@ -4,9 +4,14 @@ import logging
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 
-from KlippyGtk import KlippyGtk
-from KlippyGcodes import KlippyGcodes
-from panels.screen_panel import ScreenPanel
+from ks_includes.KlippyGtk import KlippyGtk
+from ks_includes.KlippyGcodes import KlippyGcodes
+from ks_includes.screen_panel import ScreenPanel
+
+logger = logging.getLogger("KlipperScreen.MovePanel")
+
+def create_panel(*args):
+    return MovePanel(*args)
 
 class MovePanel(ScreenPanel):
     distance = 1
@@ -14,30 +19,31 @@ class MovePanel(ScreenPanel):
 
 
     def initialize(self, panel_name):
+        _ = self.lang.gettext
 
         grid = KlippyGtk.HomogeneousGrid()
 
-        self.labels['x+'] = KlippyGtk.ButtonImage("move-x+", "X+", "color1")
+        self.labels['x+'] = KlippyGtk.ButtonImage("move-x+", _("X+"), "color1")
         self.labels['x+'].connect("clicked", self.move, "X", "+")
-        self.labels['x-'] = KlippyGtk.ButtonImage("move-x-", "X-", "color1")
+        self.labels['x-'] = KlippyGtk.ButtonImage("move-x-", _("X-"), "color1")
         self.labels['x-'].connect("clicked", self.move, "X", "-")
 
-        self.labels['y+'] = KlippyGtk.ButtonImage("move-y+", "Y+", "color2")
+        self.labels['y+'] = KlippyGtk.ButtonImage("move-y+", _("Y+"), "color2")
         self.labels['y+'].connect("clicked", self.move, "Y", "+")
-        self.labels['y-'] = KlippyGtk.ButtonImage("move-y-", "Y-", "color2")
+        self.labels['y-'] = KlippyGtk.ButtonImage("move-y-", _("Y-"), "color2")
         self.labels['y-'].connect("clicked", self.move, "Y", "-")
 
-        self.labels['z+'] = KlippyGtk.ButtonImage("move-z-", "Z+", "color3")
+        self.labels['z+'] = KlippyGtk.ButtonImage("move-z-", _("Z+"), "color3")
         self.labels['z+'].connect("clicked", self.move, "Z", "+")
-        self.labels['z-'] = KlippyGtk.ButtonImage("move-z+", "Z-", "color3")
+        self.labels['z-'] = KlippyGtk.ButtonImage("move-z+", _("Z-"), "color3")
         self.labels['z-'].connect("clicked", self.move, "Z", "-")
 
-        self.labels['home'] = KlippyGtk.ButtonImage("home", "Home All")
+        self.labels['home'] = KlippyGtk.ButtonImage("home", _("Home All"))
         self.labels['home'].connect("clicked", self.home)
 
 
-        grid.attach(self.labels['x+'], 0, 1, 1, 1)
-        grid.attach(self.labels['x-'], 2, 1, 1, 1)
+        grid.attach(self.labels['x+'], 2, 1, 1, 1)
+        grid.attach(self.labels['x-'], 0, 1, 1, 1)
         grid.attach(self.labels['y+'], 1, 0, 1, 1)
         grid.attach(self.labels['y-'], 1, 1, 1, 1)
         grid.attach(self.labels['z+'], 3, 0, 1, 1)
@@ -81,7 +87,7 @@ class MovePanel(ScreenPanel):
         bottomgrid.attach(self.labels['pos_y'], 1, 0, 1, 1)
         bottomgrid.attach(self.labels['pos_z'], 2, 0, 1, 1)
         box.pack_start(bottomgrid, True, True, 0)
-        self.labels['move_dist'] = Gtk.Label("Move Distance (mm)")
+        self.labels['move_dist'] = Gtk.Label(_("Move Distance (mm)"))
         self.labels['move_dist'].get_style_context().add_class("text")
         box.pack_start(self.labels['move_dist'], True, True, 0)
         box.pack_start(distgrid, True, True, 0)
@@ -90,17 +96,17 @@ class MovePanel(ScreenPanel):
 
 
 
-        b = KlippyGtk.ButtonImage('back', 'Back')
+        b = KlippyGtk.ButtonImage('back', _('Back'))
         b.connect("clicked", self._screen._menu_go_back)
         grid.attach(b, 3, 2, 1, 1)
 
         self.panel = grid
         self._screen.add_subscription(panel_name)
 
-    def home(self, widget):
-        self._screen._ws.send_method("post_printer_gcode_script", {"script": KlippyGcodes.HOME})
-
-    def process_update(self, data):
+    def process_update(self, action, data):
+        if action != "notify_status_update":
+            return
+        
         if "toolhead" in data and "position" in data["toolhead"]:
             self.labels['pos_x'].set_text("X: %.2f" % (data["toolhead"]["position"][0]))
             self.labels['pos_y'].set_text("Y: %.2f" % (data["toolhead"]["position"][1]))
@@ -127,7 +133,6 @@ class MovePanel(ScreenPanel):
         logging.info("# Moving " + axis + " " + dist + "mm")
 
         print("%s\n%s %s%s" % (KlippyGcodes.MOVE_RELATIVE, KlippyGcodes.MOVE, axis, dist))
-        #self._screen._ws.send_method("post_printer_gcode_script", {"script": KlippyGcodes.MOVE_RELATIVE})
-        self._screen._ws.send_method("post_printer_gcode_script", {
-            "script": "%s\n%s %s%s" % (KlippyGcodes.MOVE_RELATIVE, KlippyGcodes.MOVE, axis, dist)
-        })
+        self._screen._ws.klippy.gcode_script(
+            "%s\n%s %s%s" % (KlippyGcodes.MOVE_RELATIVE, KlippyGcodes.MOVE, axis, dist)
+        )

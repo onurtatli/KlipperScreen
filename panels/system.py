@@ -1,30 +1,36 @@
 import gi
+import logging
 import os
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 
-from KlippyGtk import KlippyGtk
-from KlippyGcodes import KlippyGcodes
-from panels.screen_panel import ScreenPanel
+from ks_includes.KlippyGtk import KlippyGtk
+from ks_includes.KlippyGcodes import KlippyGcodes
+from ks_includes.screen_panel import ScreenPanel
+
+logger = logging.getLogger("KlipperScreen.SystemPanel")
+
+def create_panel(*args):
+    return SystemPanel(*args)
 
 class SystemPanel(ScreenPanel):
     def initialize(self, panel_name):
-        # Create gtk items here
+        _ = self.lang.gettext
 
         grid = KlippyGtk.HomogeneousGrid()
 
-        restart = KlippyGtk.ButtonImage('reboot','Klipper Restart','color1')
+        restart = KlippyGtk.ButtonImage('reboot',_('Klipper Restart'),'color1')
         restart.connect("clicked", self.restart_klippy)
-        firmrestart = KlippyGtk.ButtonImage('restart','Firmware Restart','color2')
-        restart.connect("clicked", self.restart_klippy, "firmware")
+        firmrestart = KlippyGtk.ButtonImage('restart',_('Firmware Restart'),'color2')
+        firmrestart.connect("clicked", self.restart_klippy, "firmware")
         back = KlippyGtk.ButtonImage('back', 'Back')
         back.connect("clicked", self._screen._menu_go_back)
 
         info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         info.set_vexpand(True)
 
-        title = Gtk.Label("System Information")
+        title = Gtk.Label(_("System Information"))
         title.set_margin_bottom(5)
         title.set_margin_top(15)
 
@@ -36,8 +42,19 @@ class SystemPanel(ScreenPanel):
         title.get_style_context().add_class('temperature_entry')
         self.labels['loadavg'].get_style_context().add_class('temperature_entry')
 
+        self.labels['klipper_version'] = Gtk.Label(_("Klipper Version") +
+            (": %s" % self._screen.printer.get_klipper_version()))
+        self.labels['klipper_version'].set_margin_top(15)
+        self.labels['klipper_version'].get_style_context().add_class('temperature_entry')
+
+        self.labels['ks_version'] = Gtk.Label(_("KlipperScreen Version") + (": %s" % self._screen.version))
+        self.labels['ks_version'].set_margin_top(15)
+        self.labels['ks_version'].get_style_context().add_class('temperature_entry')
+
         info.add(title)
         info.add(self.labels['loadavg'])
+        info.add(self.labels['klipper_version'])
+        info.add(self.labels['ks_version'])
 
 
         grid.attach(info, 0, 0, 4, 2)
@@ -48,18 +65,17 @@ class SystemPanel(ScreenPanel):
         self.panel = grid
 
     def update_system_load(self):
+        _ = self.lang.gettext
         lavg = os.getloadavg()
         self.labels['loadavg'].set_text(
-            "Load Average: %.2f %.2f %.2f" % (lavg[0], lavg[1], lavg[2])
+            _("Load Average") + (": %.2f %.2f %.2f" % (lavg[0], lavg[1], lavg[2]))
         )
 
         #TODO: Shouldn't need this
         self.system_timeout = GLib.timeout_add(1000, self.update_system_load)
 
-    def restart_klippy(self, type=None):
+    def restart_klippy(self, widget, type=None):
         if type == "firmware":
-            method = "post_printer_firmware_restart"
+            self._screen._ws.klippy.restart_firmware()
         else:
-            method = "post_printer_restart"
-
-        self._screen._ws.send_method(method)
+            self._screen._ws.klippy.restart()

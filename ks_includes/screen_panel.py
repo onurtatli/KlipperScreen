@@ -3,12 +3,14 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 
-from KlippyGtk import KlippyGtk
-from KlippyGcodes import KlippyGcodes
+from ks_includes.KlippyGtk import KlippyGtk
+from ks_includes.KlippyGcodes import KlippyGcodes
 
 class ScreenPanel:
     def __init__(self, screen):
         self._screen = screen
+        self.lang = self._screen.lang
+        self._printer = screen.printer
         self.labels = {}
 
 
@@ -16,9 +18,15 @@ class ScreenPanel:
         # Create gtk items here
         return
 
+    def emergency_stop(self, widget):
+        self._screen._ws.klippy.emergency_stop()
+
     def get(self):
         # Return gtk item
         return self.panel
+
+    def home(self, widget):
+        self._screen._ws.klippy.gcode_script(KlippyGcodes.HOME)
 
     def menu_item_clicked(self, widget, panel, item):
         print("### Creating panel "+ item['panel'])
