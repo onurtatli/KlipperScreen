@@ -2,7 +2,7 @@ import gi
 import logging
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk, GLib
+from gi.repository import Gtk, Gdk, GLib, Pango
 
 from ks_includes.KlippyGtk import KlippyGtk
 from ks_includes.screen_panel import ScreenPanel
@@ -82,45 +82,47 @@ class JobStatusPanel(ScreenPanel):
         self.labels['cancel'] = KlippyGtk.ButtonImage("stop",_("Cancel"),"color2")
         self.labels['cancel'].connect("clicked", self.cancel)
         grid.attach(self.labels['cancel'], 1, 2, 1, 1)
-        self.labels['estop'] = KlippyGtk.ButtonImage("decrease",_("Emergency Stop"),"color4")
+        self.labels['estop'] = KlippyGtk.ButtonImage("emergency",_("Emergency Stop"),"color4")
         self.labels['estop'].connect("clicked", self.emergency_stop)
         grid.attach(self.labels['estop'], 2, 2, 1, 1)
         self.labels['control'] = KlippyGtk.ButtonImage("control",_("Control"),"color3")
         self.labels['control'].connect("clicked", self._screen._go_to_submenu, "")
         grid.attach(self.labels['control'], 3, 2, 1, 1)
 
-        self.panel = grid
+        self.layout = grid
 
         self._screen.add_subscription(panel_name)
 
+    def activate(self):
+        self.enable_button("pause","cancel","resume")
+
     def resume(self, widget):
-        self.disable_button("pause","cancel")
+        #self.disable_button("resume","cancel")
         self._screen._ws.klippy.print_resume(self._response_callback, "enable_button", "pause", "cancel")
         self._screen.show_all()
 
     def pause(self, widget):
-        self.disable_button("resume","cancel")
+        #self.disable_button("pause","cancel")
         self._screen._ws.klippy.print_pause(self._response_callback, "enable_button", "resume", "cancel")
         self._screen.show_all()
 
     def cancel(self, widget):
         _ = self.lang.gettext
 
-        dialog = KlippyGtk.ConfirmDialog(
-            self._screen,
-            _("Are you sure you wish to cancel this print?"),
-            [
-                {
-                    "name": _("Cancel Print"),
-                    "response": Gtk.ResponseType.OK
-                },
-                {
-                    "name": _("Go Back"),
-                    "response": Gtk.ResponseType.CANCEL
-                }
-            ],
-            self.cancel_confirm
-        )
+        buttons = [
+            {"name": _("Cancel Print"), "response": Gtk.ResponseType.OK},
+            {"name": _("Go Back"), "response": Gtk.ResponseType.CANCEL}
+        ]
+
+        label = Gtk.Label()
+        label.set_markup(_("Are you sure you wish to cancel this print?"))
+        label.set_hexpand(True)
+        label.set_halign(Gtk.Align.CENTER)
+        label.set_line_wrap(True)
+        label.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
+        label.get_style_context().add_class("text")
+
+        dialog = KlippyGtk.Dialog(self._screen, buttons, label, self.cancel_confirm)
         self.disable_button("pause","cancel")
 
     def cancel_confirm(self, widget, response_id):
@@ -130,7 +132,9 @@ class JobStatusPanel(ScreenPanel):
             self.enable_button("pause","cancel")
             return
 
-        self._screen._ws.klippy.print_cancel(self._response_callback, "enable_button", "pause", "cancel")
+        logger.debug("Canceling print")
+        self.disable_button("pause","resume","cancel")
+        self._screen._ws.klippy.print_cancel(self._response_callback)
 
     def _response_callback(self, response, method, params, func, *args):
         if func == "enable_button":
@@ -148,7 +152,7 @@ class JobStatusPanel(ScreenPanel):
     def process_update(self, action, data):
         if action != "notify_status_update":
             return
-        
+
         self.update_temp("heater_bed",
             self._printer.get_dev_stat("heater_bed","temperature"),
             self._printer.get_dev_stat("heater_bed","target")
@@ -182,16 +186,14 @@ class JobStatusPanel(ScreenPanel):
         if "pause_resume" in data:
             if self.is_paused == True and data['pause_resume']['is_paused'] == False:
                 self.is_paused = False
-                self.panel.attach(self.labels['pause'], 0, 2, 1, 1)
-                self.panel.remove(self.labels['resume'])
-                self.panel.show_all()
+                self.layout.attach(self.labels['pause'], 0, 2, 1, 1)
+                self.layout.remove(self.labels['resume'])
+                self.layout.show_all()
             if self.is_paused == False and data['pause_resume']['is_paused'] == True:
                 self.is_paused = True
-                self.panel.attach(self.labels['resume'], 0, 2, 1, 1)
-                self.panel.remove(self.labels['pause'])
-                self.panel.show_all()
-
-
+                self.layout.attach(self.labels['resume'], 0, 2, 1, 1)
+                self.layout.remove(self.labels['pause'])
+                self.layout.show_all()
 
     def update_image_text(self, label, text):
         if label in self.labels and 'l' in self.labels[label]:
