@@ -4,7 +4,6 @@ import logging
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib, Pango
 
-from ks_includes.KlippyGtk import KlippyGtk
 from ks_includes.KlippyGcodes import KlippyGcodes
 from ks_includes.screen_panel import ScreenPanel
 
@@ -54,8 +53,8 @@ class PowerPanel(ScreenPanel):
         switch.set_hexpand(False)
         switch.set_active(True if self._screen.printer.get_power_device_status(device) == "on" else False)
         switch.connect("notify::active", self.on_switch, device)
-        switch.set_property("width-request", 150)
-        switch.set_property("height-request", 80)
+        switch.set_property("width-request", round(self._gtk.get_image_width()*2.5))
+        switch.set_property("height-request", round(self._gtk.get_image_height()*1.25))
 
         labels = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         labels.add(name)

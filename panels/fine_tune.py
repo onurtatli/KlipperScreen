@@ -4,7 +4,6 @@ import logging
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 
-from ks_includes.KlippyGtk import KlippyGtk
 from ks_includes.KlippyGcodes import KlippyGcodes
 from ks_includes.screen_panel import ScreenPanel
 
@@ -29,58 +28,48 @@ class FineTunePanel(ScreenPanel):
     def initialize(self, panel_name):
         _ = self.lang.gettext
 
-        grid = KlippyGtk.HomogeneousGrid()
+        grid = self._gtk.HomogeneousGrid()
         grid.set_row_homogeneous(False)
         logger.debug("FineTunePanel")
 
 
-        self.labels['z+'] = KlippyGtk.ButtonImage("move-z-", _("Z+"), "color1")
+        self.labels['z+'] = self._gtk.ButtonImage("move-z-", _("Z+"), "color1")
         self.labels['z+'].connect("clicked", self.change_babystepping, "+")
         self.labels['zoffset'] = Gtk.Label("0.00" + _("mm"))
         self.labels['zoffset'].get_style_context().add_class('temperature_entry')
-        self.labels['z-'] = KlippyGtk.ButtonImage("move-z+", _("Z-"), "color1")
+        self.labels['z-'] = self._gtk.ButtonImage("move-z+", _("Z-"), "color1")
         self.labels['z-'].connect("clicked", self.change_babystepping, "-")
 
         grid.attach(self.labels['z+'], 0, 0, 1, 1)
         grid.attach(self.labels['zoffset'], 0, 1, 1, 1)
         grid.attach(self.labels['z-'], 0, 2, 1, 1)
 
-        self.labels['fan+'] = KlippyGtk.ButtonImage("fan-on", _("Fan +"), "color2")
-        self.labels['fan+'].connect("clicked", self.change_fan, "+")
-        self.labels['fanspeed'] = Gtk.Label("100%")
-        self.labels['fanspeed'].get_style_context().add_class('temperature_entry')
-        self.labels['fan-'] = KlippyGtk.ButtonImage("fan-off", _("Fan -"), "color2")
-        self.labels['fan-'].connect("clicked", self.change_fan, "-")
-        grid.attach(self.labels['fan+'], 1, 0, 1, 1)
-        grid.attach(self.labels['fanspeed'], 1, 1, 1, 1)
-        grid.attach(self.labels['fan-'], 1, 2, 1, 1)
-
-        self.labels['speed+'] = KlippyGtk.ButtonImage("speed-step", _("Speed +"), "color3")
+        self.labels['speed+'] = self._gtk.ButtonImage("speed-step", _("Speed +"), "color3")
         self.labels['speed+'].connect("clicked", self.change_speed, "+")
         self.labels['speedfactor'] = Gtk.Label("100%")
         self.labels['speedfactor'].get_style_context().add_class('temperature_entry')
-        self.labels['speed-'] = KlippyGtk.ButtonImage("speed-step", _("Speed -"), "color3")
+        self.labels['speed-'] = self._gtk.ButtonImage("speed-step", _("Speed -"), "color3")
         self.labels['speed-'].connect("clicked", self.change_speed, "-")
-        grid.attach(self.labels['speed+'], 2, 0, 1, 1)
-        grid.attach(self.labels['speedfactor'], 2, 1, 1, 1)
-        grid.attach(self.labels['speed-'], 2, 2, 1, 1)
+        grid.attach(self.labels['speed+'], 1, 0, 1, 1)
+        grid.attach(self.labels['speedfactor'], 1, 1, 1, 1)
+        grid.attach(self.labels['speed-'], 1, 2, 1, 1)
 
-        self.labels['extrude+'] = KlippyGtk.ButtonImage("extrude", _("Extrusion +"), "color4")
+        self.labels['extrude+'] = self._gtk.ButtonImage("extrude", _("Extrusion +"), "color4")
         self.labels['extrude+'].connect("clicked", self.change_extrusion, "+")
         self.labels['extrudefactor'] = Gtk.Label("100%")
         self.labels['extrudefactor'].get_style_context().add_class('temperature_entry')
-        self.labels['extrude-'] = KlippyGtk.ButtonImage("retract", _("Extrusion -"), "color4")
+        self.labels['extrude-'] = self._gtk.ButtonImage("retract", _("Extrusion -"), "color4")
         self.labels['extrude-'].connect("clicked", self.change_extrusion, "-")
-        grid.attach(self.labels['extrude+'], 3, 0, 1, 1)
-        grid.attach(self.labels['extrudefactor'], 3, 1, 1, 1)
-        grid.attach(self.labels['extrude-'], 3, 2, 1, 1)
+        grid.attach(self.labels['extrude+'], 2, 0, 1, 1)
+        grid.attach(self.labels['extrudefactor'], 2, 1, 1, 1)
+        grid.attach(self.labels['extrude-'], 2, 2, 1, 1)
 
 
         # babystepping grid
         bsgrid = Gtk.Grid()
         j = 0;
         for i in self.bs_deltas:
-            self.labels[i] = KlippyGtk.ToggleButton(i)
+            self.labels[i] = self._gtk.ToggleButton(i)
             self.labels[i].connect("clicked", self.change_bs_delta, i)
             ctx = self.labels[i].get_style_context()
             if j == 0:
@@ -99,7 +88,7 @@ class FineTunePanel(ScreenPanel):
         deltgrid = Gtk.Grid()
         j = 0;
         for i in self.percent_deltas:
-            self.labels[i] = KlippyGtk.ToggleButton("%s%%" % i)
+            self.labels[i] = self._gtk.ToggleButton("%s%%" % i)
             self.labels[i].connect("clicked", self.change_percent_delta, i)
             ctx = self.labels[i].get_style_context()
             if j == 0:
@@ -115,7 +104,7 @@ class FineTunePanel(ScreenPanel):
 
         self.labels["1"].set_active(True)
 
-        grid.attach(deltgrid, 1, 3, 3, 1)
+        grid.attach(deltgrid, 1, 3, 2, 1)
 
         #self.panel = grid
         self.content.add(grid)
@@ -136,10 +125,6 @@ class FineTunePanel(ScreenPanel):
             if "speed_factor" in data["gcode_move"]:
                 self.speed = int(data["gcode_move"]["speed_factor"]*100)
                 self.labels['speedfactor'].set_text("%3d%%" % self.speed)
-
-        if "fan" in data and "speed" in data['fan']:
-            self.fan = int(round(data['fan']['speed'],2)*100)
-            self.labels['fanspeed'].set_text("%3d%%" % self.fan)
 
     def change_babystepping(self, widget, dir):
         if dir == "+":
@@ -217,19 +202,3 @@ class FineTunePanel(ScreenPanel):
             if i == self.percent_delta:
                 continue
             self.labels[str(i)].set_active(False)
-
-    #def
-
-    def select_fan_speed(self, widget):
-        if self.user_selecting == True:
-            return
-
-        self.user_selecting = True
-        self.panel.attach(self.labels["apply"], 3, 0, 1, 1)
-        self.panel.attach(self.labels["cancel"], 0, 0, 1, 1)
-        self._screen.show_all()
-
-    def cancel_select_fan_speed(self, widget):
-        self.user_selecting = False
-        self.panel.remove(self.labels["apply"])
-        self.panel.remove(self.labels["cancel"])

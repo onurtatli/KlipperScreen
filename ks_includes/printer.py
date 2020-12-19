@@ -40,6 +40,15 @@ class Printer:
                     "temperature": 0,
                     "target": 0
                 }
+            if x.startswith('bed_mesh '):
+                r = self.config[x]
+                r['x_count'] = int(r['x_count'])
+                r['y_count'] = int(r['y_count'])
+                r['max_x'] = float(r['max_x'])
+                r['min_x'] = float(r['min_x'])
+                r['max_y'] = float(r['max_y'])
+                r['min_y'] = float(r['min_y'])
+                r['points']  = [[float(j.strip()) for j in i.split(",")] for i in r['points'].strip().split("\n")]
         self.process_update(data)
 
         logger.info("Klipper version: %s", self.klipper['version'])
@@ -57,8 +66,16 @@ class Printer:
         logger.debug("Power devices: %s" % self.power_devices)
 
     def process_update(self, data):
-        keys = ['virtual_sdcard','pause_resume','idle_timeout','print_stats']
-        keys = ['fan','gcode_move','idle_timeout','pause_resume','print_stats','toolhead','virtual_sdcard']
+        keys = [
+            'bed_mesh',
+            'fan',
+            'gcode_move',
+            'idle_timeout',
+            'pause_resume',
+            'print_stats',
+            'toolhead',
+            'virtual_sdcard'
+        ]
         for x in keys:
             if x in data:
                 if x not in self.data:
@@ -85,6 +102,9 @@ class Printer:
         if data['device'] in self.power_devices:
             self.power_devices[data['device']]['status'] = data['status']
 
+    def config_section_exists(self, section):
+        return section in list(self.config)
+
     def get_config_section_list(self, search=""):
         return [i for i in list(self.config) if i.startswith(search)]
 
@@ -95,6 +115,32 @@ class Printer:
 
     def get_data(self):
         return self.data
+
+    def get_gcode_macros(self):
+        return self.get_config_section_list("gcode_macro ")
+
+    def get_printer_status_data(self):
+        data = {
+            "printer": {
+                "bltouch": self.section_exists("bltouch"),
+                "gcode_macros": {
+                    "count": len(self.get_gcode_macros())
+                },
+                "idle_timeout": self.get_stat("idle_timeout").copy(),
+                "pause_resume": self.get_stat("pause_resume").copy(),
+                "power_devices": {
+                    "count": len(self.get_power_devices())
+                },
+                "probe": self.section_exists("probe")
+            }
+        }
+
+        sections = ["bed_mesh","bltouch","probe"]
+        for section in sections:
+            if self.config_section_exists(section):
+                data["printer"][section] = self.get_config_section(section).copy()
+
+        return data
 
     def get_klipper_version(self):
         return self.klipper['version']
@@ -108,8 +154,12 @@ class Printer:
         return self.power_devices[device]['status']
 
     def get_stat(self, stat, substat = None):
+        if stat not in self.data:
+            return None
         if substat != None:
-            return self.data[stat][substat]
+            if substat in self.data[stat]:
+                return self.data[stat][substat]
+            return None
         return self.data[stat]
 
     def set_dev_temps(self, dev, temp, target=None):
@@ -136,6 +186,11 @@ class Printer:
 
     def get_tool_number(self, tool):
         return self.tools.index(tool)
+
+    def section_exists(self, section):
+        if section in self.get_config_section_list():
+            return True
+        return False
 
     def set_dev_stat(self, dev, stat, value):
         if dev not in self.devices:

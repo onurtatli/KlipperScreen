@@ -1,7 +1,33 @@
 # Configuration
 
-In the KlipperScreen folder, a file _KlipperScreen.conf_ allows for configuration of the screen. This document will
-detail how to configure KlipperScreen. A default config is included here: [ks_includes/KlipperScreen.conf](../ks_includes/KlipperScreen.conf)
+KlipperScreen has some configuration options which are outlined below. KlipperScreen will search for a configuration
+file in the following order:
+_${HOME}/KlipperScreen.conf_
+_${KlipperScreen_Directory}/KlipperScreen.conf_
+
+If one of those files are found, it will be used over the default configuration. The default configuration will be
+merged with the custom configuration, so if you do not define any menus the default menus will be used.The default
+config is included here: [ks_includes/KlipperScreen.conf](../ks_includes/KlipperScreen.conf)
+
+## Main Options
+```
+[main]
+# Define the moonraker host/port if different from 127.0.0.1 and 7125
+moonraker_host: 127.0.0.1
+moonraker_port: 7125
+
+# Invert axis in move panel. Default is False. Change to true to invert
+invert_x: False
+invert_y: False
+invert_z: False
+
+# Time (seconds) before the Job Status page reverts to main menu after a successful job
+job_complete_timeout: 30
+
+# Time (seconds) before the Job Status page reverts to main menu after a successful job.
+#   If this option is 0, the user must click on a button to go back to the main menu.
+job_error_timeout: 0
+```
 
 
 ## Preheat Options
@@ -40,6 +66,11 @@ Available panels are listed here: [docs/panels.md](panels.md)
 
 Certain variables are available for conditional testing of the enable statement:
 ```
+printer.bltouch # Available if bltouch section defined in config
+printer.gcode_macros.count # Number of gcode macros
+printer.idle_timeout # Idle timeout section
+printer.pause_resume # Pause resume section of Klipper
+printer.probe # Available if probe section defined in config
 printer.power_devices.count # Number of power devices configured in Moonraker
 ```
 

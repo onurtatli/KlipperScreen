@@ -14,14 +14,16 @@ class KlippyFiles:
     callbacks = []
     filelist = []
     files = {}
+    metadata_timeout = {}
     timeout = None
+    thumbnail_dir = "/tmp/.KS-thumbnails"
 
     def __init__(self, screen):
         self._screen = screen
         self.add_timeout()
 
-        if not os.path.exists('/tmp/.KS-thumbnails'):
-            os.makedirs('/tmp/.KS-thumbnails')
+        if not os.path.exists(self.thumbnail_dir):
+            os.makedirs(self.thumbnail_dir)
         GLib.idle_add(self.ret_files, False)
 
 
@@ -41,12 +43,12 @@ class KlippyFiles:
                             "size": item['size'],
                             "modified": item['modified']
                         }
-                        self.update_metadata(item['filename'])
+                        self.request_metadata(item['filename'])
 
                 if len(self.callbacks) > 0 and (len(newfiles) > 0 or len(deletedfiles) > 0):
                     logger.debug("Running callbacks...")
                     for cb in self.callbacks:
-                        cb(newfiles, deletedfiles)
+                        cb(newfiles, deletedfiles, [])
 
                 if len(deletedfiles) > 0:
                     logger.debug("Deleted files: %s", deletedfiles)
@@ -54,44 +56,79 @@ class KlippyFiles:
                         self.filelist.remove(file)
                         self.files.pop(file, None)
 
-                    #self.get_file_data(item['filename'])
-                #files = [asyncio.create_task(self.get_file_data(file)) for file in self.files]
-                #await asyncio.gather(files)
-                #files = [GLib.idle_add(self.ret_file_data, file) for file in self.files]
-
         elif method == "server.files.metadata":
             if "error" in result.keys():
-                logger.debug("Error in getting metadata for %s" %(params['filename']))
-                self.request_metadata(params['filename'])
+                logger.debug("Error in getting metadata for %s. Retrying in 6 seconds" %(params['filename']))
                 return
 
             logger.debug("Got metadata for %s" % (result['result']['filename']))
+            if params['filename'] in self.metadata_timeout:
+                GLib.source_remove(self.metadata_timeout[params['filename']])
+                del self.metadata_timeout[params['filename']]
+
             for x in result['result']:
                 self.files[params['filename']][x] = result['result'][x]
             if "thumbnails" in self.files[params['filename']]:
                 self.files[params['filename']]['thumbnails'].sort(key=lambda x: x['size'], reverse=True)
 
                 for thumbnail in self.files[params['filename']]['thumbnails']:
-                    f = open("/tmp/.KS-thumbnails/%s-%s" % (params['filename'], thumbnail['size']), "wb")
+                    f = open("%s/%s-%s" % (self.thumbnail_dir, params['filename'], thumbnail['size']), "wb")
                     f.write(base64.b64decode(thumbnail['data']))
                     f.close()
             for cb in self.callbacks:
+                logger.debug("Running metadata callbacks")
                 cb([], [], [params['filename']])
 
     def add_file_callback(self, callback):
-        self.callbacks.append(callback)
+        try:
+            self.callbacks.append(callback)
+        except:
+            logger.debug("Callback not found: %s" % callback)
+
+    def remove_file_callback(self, callback):
+        if callback in self.callbacks:
+            self.callbacks.pop(self.callbacks.index(callback))
 
     def add_timeout(self):
         if self.timeout == None:
             self.timeout = GLib.timeout_add(4000, self.ret_files)
+
+    def file_exists(self, filename):
+        return True if filename in self.filelist else False
+
+    def file_metadata_exists(self, filename):
+        if not self.file_exists(filename):
+            return False
+        if "slicer" in self.files[filename]:
+            return True
+        return False
+
+    def get_thumbnail_location(self, filename):
+        if not self.has_thumbnail(filename):
+            return None
+        return "%s/%s-%s" % (self.thumbnail_dir, filename, self.files[filename]['thumbnails'][0]['size'])
+
+    def has_thumbnail(self, filename):
+        if filename not in self.files:
+            return False
+        return "thumbnails" in self.files[filename] and len(self.files[filename]) > 0
 
     def remove_timeout(self):
         if self.timeout != None:
             self.timeout = None
 
     def request_metadata(self, filename):
-        GLib.timeout_add(2000, self._screen._ws.klippy.get_file_metadata, filename, self._callback)
-        return False
+        if filename not in self.filelist:
+            return False
+        if filename in self.metadata_timeout:
+            GLib.source_remove(self.metadata_timeout[filename])
+        self.metadata_timeout[filename] = GLib.timeout_add(
+            6000, self._screen._ws.klippy.get_file_metadata, filename, self._callback
+        )
+        GLib.idle_add(
+            lambda x, y: False if self._screen._ws.klippy.get_file_metadata(x,y) else False,
+            filename, self._callback
+        )
 
     def ret_files(self, retval=True):
         if not self._screen._ws.klippy.get_file_list(self._callback):
@@ -114,6 +151,3 @@ class KlippyFiles:
 
     def add_file(self, file_name, size, modified, old_file_name = None):
         print(file_name)
-
-    def update_metadata(self, filename):
-        self._screen._ws.klippy.get_file_metadata(filename, self._callback)

@@ -4,7 +4,6 @@ import logging
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
 
-from ks_includes.KlippyGtk import KlippyGtk
 from ks_includes.KlippyGcodes import KlippyGcodes
 from ks_includes.screen_panel import ScreenPanel
 
@@ -20,7 +19,7 @@ class FanPanel(ScreenPanel):
     def initialize(self, panel_name):
         _ = self.lang.gettext
 
-        grid = KlippyGtk.HomogeneousGrid()
+        grid = self._gtk.HomogeneousGrid()
 
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         box.set_hexpand(True)
@@ -33,17 +32,17 @@ class FanPanel(ScreenPanel):
         self.labels["scale"].get_style_context().add_class("fan_slider")
         box.add(self.labels["scale"])
 
-        self.labels["fanoff"] = KlippyGtk.ButtonImage("fan-off", _("Fan Off"))
+        self.labels["fanoff"] = self._gtk.ButtonImage("fan-off", _("Fan Off"))
         self.labels["fanoff"].get_style_context().add_class("color1")
         self.labels["fanoff"].connect("clicked", self.set_fan_on, False)
-        self.labels["fanon"] = KlippyGtk.ButtonImage("fan", _("Fan On"))
+        self.labels["fanon"] = self._gtk.ButtonImage("fan", _("Fan On"))
         self.labels["fanon"].get_style_context().add_class("color3")
         self.labels["fanon"].connect("clicked", self.set_fan_on, True)
 
-        self.labels["apply"] = KlippyGtk.ButtonImage("resume", _("Set Speed"))
+        self.labels["apply"] = self._gtk.ButtonImage("resume", _("Set Speed"))
         self.labels["apply"].get_style_context().add_class("color2")
         self.labels["apply"].connect("clicked", self.set_fan_speed)
-        self.labels["cancel"] = KlippyGtk.ButtonImage("stop", _("Cancel Change"))
+        self.labels["cancel"] = self._gtk.ButtonImage("stop", _("Cancel Change"))
         self.labels["cancel"].get_style_context().add_class("color4")
         self.labels["cancel"].connect("clicked", self.cancel_select_fan_speed)
         self.labels["cancel"].hide()
@@ -88,7 +87,9 @@ class FanPanel(ScreenPanel):
 
     def set_fan_on(self, widget, fanon):
         speed = 100 if fanon == True else 0
-        self.labels["scale"].disconnect_by_func(self.select_fan_speed)
-        self.labels["scale"].set_value(speed)
-        self.labels["scale"].connect("value-changed", self.select_fan_speed)
         self._screen._ws.klippy.gcode_script(KlippyGcodes.set_fan_speed(speed))
+        self.fan_speed = float(speed)
+        self.labels["scale"].disconnect_by_func(self.select_fan_speed)
+        self.labels["scale"].set_value(self.fan_speed)
+        self.labels["scale"].connect("value-changed", self.select_fan_speed)
+        self.cancel_select_fan_speed(widget)
