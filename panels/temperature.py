@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import gi
 import logging
 
@@ -29,7 +30,7 @@ class TemperaturePanel(ScreenPanel):
                 break
             elif i == 0:
                 primary_tool = x
-            self.labels[x] = self._gtk.ToggleButtonImage("extruder-"+str(i+1), self._gtk.formatTemperatureString(0, 0))
+            self.labels[x] = self._gtk.ToggleButtonImage("extruder-"+str(i), self._gtk.formatTemperatureString(0, 0))
             self.labels[x].connect('clicked', self.select_heater, x)
             if i == 0:
                 self.labels[x].set_active(True)
@@ -39,10 +40,11 @@ class TemperaturePanel(ScreenPanel):
         print ("Primary tool: " + primary_tool)
         self.labels[primary_tool].get_style_context().add_class('button_active')
 
-        self.labels["heater_bed"] = self._gtk.ToggleButtonImage("bed", self._gtk.formatTemperatureString(0, 0))
-        self.labels["heater_bed"].connect('clicked', self.select_heater, "heater_bed")
-        width = 2 if i > 1 else 1
-        eq_grid.attach(self.labels["heater_bed"], 0, i/2+1, width, 1)
+        if self._printer.has_heated_bed():
+            self.labels["heater_bed"] = self._gtk.ToggleButtonImage("bed", self._gtk.formatTemperatureString(0, 0))
+            self.labels["heater_bed"].connect('clicked', self.select_heater, "heater_bed")
+            width = 2 if i > 1 else 1
+            eq_grid.attach(self.labels["heater_bed"], 0, i/2+1, width, 1)
 
         self.labels["control_grid"] = self._gtk.HomogeneousGrid()
 
@@ -111,6 +113,7 @@ class TemperaturePanel(ScreenPanel):
         _ = self.lang.gettext
 
         numpad = self._gtk.HomogeneousGrid()
+        numpad.set_direction(Gtk.TextDirection.LTR)
 
         keys = [
             ['1','numpad_tleft'],
@@ -181,10 +184,11 @@ class TemperaturePanel(ScreenPanel):
         if action != "notify_status_update":
             return
 
-        self.update_temp("heater_bed",
-            self._printer.get_dev_stat("heater_bed","temperature"),
-            self._printer.get_dev_stat("heater_bed","target")
-        )
+        if self._printer.has_heated_bed():
+            self.update_temp("heater_bed",
+                self._printer.get_dev_stat("heater_bed","temperature"),
+                self._printer.get_dev_stat("heater_bed","target")
+            )
         for x in self._printer.get_tools():
             self.update_temp(x,
                 self._printer.get_dev_stat(x,"temperature"),

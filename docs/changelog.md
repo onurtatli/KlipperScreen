@@ -1,5 +1,39 @@
 ## Changelog
 
+#### 2021 01 21
+* Configure screen blanking from settings panel
+
+#### 2021 01 21
+* !! Important. matchbox-keyboard must be installed. Install script has changed to include this
+* Added onscreen keyboard
+* Can now add bed mesh profiles
+
+#### 2021 01 20
+* Add different time estimation methods to settings panel
+* Job status panel will use time estimation method selected from settings panel
+* Bugfixes to state tracking
+
+#### 2021 01 10
+* Added system reboot/shutdown buttons to systems panel.
+
+#### 2021 01 09
+* Better RTL support (most panels now properly support RTL)
+* Fixes to install script for latest version of raspbian.
+
+#### 2021 01 08
+* Added settings panel. Invert axis and hiding macros can now be configured from within KlipperScreen
+
+#### 2021 01 03
+* Updated base language translation files with new phrases
+* Allow translations from KlipperScreen.conf for
+* Update menus for RTL languages
+* Add fr_FR and he_IL language (courtesy of manu7irl)
+
+#### 2020 12 21
+* KlipperScreen doesn't have to be a trusted client. It can use the Moonraker API key
+* Updates to job_status for multiple extruders. Will now show the current extruder.
+* Updates to extrude panel to show multiple extruders and allow switching between them.
+
 #### 2020 12 18
 * Add gcode_macros panel
 

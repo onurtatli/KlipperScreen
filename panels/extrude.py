@@ -19,18 +19,30 @@ class ExtrudePanel(ScreenPanel):
     def initialize(self, panel_name):
         _ = self.lang.gettext
 
-        self.speed = _("Medium")
-        self.speeds = [_("Slow"), _("Medium"), _("Fast")]
+        self.speed = "Medium"
+        self.speeds = ["Slow", "Medium", "Fast"]
         self.speed_trans = {
-            _("Slow"): "300",
-            _("Medium"): "800",
-            _("Fast"): "1400"
+            "Slow": "300",
+            "Medium": "800",
+            "Fast": "1400"
         }
+
+        # This line for translations only
+        speed_translations = [_("Slow"), _("Medium"), _("Fast")]
 
         grid = self._gtk.HomogeneousGrid()
 
-        self.labels['tool0'] = self._gtk.ButtonImage("extruder-1",_("Tool 1"),"color1")
-        self.labels['tool0'].get_style_context().add_class("button_active")
+        i = 0
+        self.current_extruder = self._printer.get_stat("toolhead","extruder")
+        for extruder in self._printer.get_tools():
+            self.labels[extruder] = self._gtk.ButtonImage("extruder-%s" % i,_("Tool") + " %s" %str(i),"color1")
+            self.labels[extruder].connect("clicked", self.change_extruder, extruder)
+            if extruder == self.current_extruder:
+                self.labels[extruder].get_style_context().add_class("button_active")
+            if i <= 3:
+                grid.attach(self.labels[extruder], i, 0, 1, 1)
+            i += 1
+
         self.labels['extrude'] = self._gtk.ButtonImage("extrude",_("Extrude"),"color3")
         self.labels['extrude'].connect("clicked", self.extrude, "+")
         self.labels['retract'] = self._gtk.ButtonImage("retract",_("Retract"),"color2")
@@ -41,8 +53,6 @@ class ExtrudePanel(ScreenPanel):
             "panel": "temperature"
         })
 
-
-        grid.attach(self.labels['tool0'], 0, 0, 1, 1)
         grid.attach(self.labels['extrude'], 0, 1, 1, 1)
         grid.attach(self.labels['retract'], 3, 1, 1, 1)
         grid.attach(self.labels['temperature'], 0, 2, 1, 1)
@@ -54,9 +64,11 @@ class ExtrudePanel(ScreenPanel):
             self.labels["dist"+str(i)] = self._gtk.ToggleButton(i)
             self.labels["dist"+str(i)].connect("clicked", self.change_distance, i)
             ctx = self.labels["dist"+str(i)].get_style_context()
-            if j == 0:
+            if ((self._screen.lang_ltr == True and j == 0) or
+                    (self._screen.lang_ltr == False and j == len(self.distances)-1)):
                 ctx.add_class("distbutton_top")
-            elif j == len(self.distances)-1:
+            elif ((self._screen.lang_ltr == False and j == 0) or
+                    (self._screen.lang_ltr == True and j == len(self.distances)-1)):
                 ctx.add_class("distbutton_bottom")
             else:
                 ctx.add_class("distbutton")
@@ -69,12 +81,14 @@ class ExtrudePanel(ScreenPanel):
         speedgrid = Gtk.Grid()
         j = 0;
         for i in self.speeds:
-            self.labels["speed"+str(i)] = self._gtk.ToggleButton(i)
+            self.labels["speed"+str(i)] = self._gtk.ToggleButton(_(i))
             self.labels["speed"+str(i)].connect("clicked", self.change_speed, i)
             ctx = self.labels["speed"+str(i)].get_style_context()
-            if j == 0:
+            if ((self._screen.lang_ltr == True and j == 0) or
+                    (self._screen.lang_ltr == False and j == len(self.speeds)-1)):
                 ctx.add_class("distbutton_top")
-            elif j == len(self.speeds)-1:
+            elif ((self._screen.lang_ltr == False and j == 0) or
+                    (self._screen.lang_ltr == True and j == len(self.speeds)-1)):
                 ctx.add_class("distbutton_bottom")
             else:
                 ctx.add_class("distbutton")
@@ -98,10 +112,17 @@ class ExtrudePanel(ScreenPanel):
             return
 
         for x in self._printer.get_tools():
-            self.update_temp("tool%s" % self._printer.get_tool_number(x),
+            self.update_temp(x,
                 self._printer.get_dev_stat(x,"temperature"),
                 self._printer.get_dev_stat(x,"target")
             )
+
+        if ("toolhead" in data and "extruder" in data["toolhead"] and
+                data["toolhead"]["extruder"] != self.current_extruder):
+            for extruder in self._printer.get_tools():
+                self.labels[extruder].get_style_context().remove_class("button_active")
+            self.current_extruder = data["toolhead"]["extruder"]
+            self.labels[self.current_extruder].get_style_context().add_class("button_active")
 
     def change_distance(self, widget, distance):
         if self.distance == distance:
@@ -118,6 +139,12 @@ class ExtrudePanel(ScreenPanel):
             if i == self.distance:
                 continue
             self.labels["dist"+str(i)].set_active(False)
+
+    def change_extruder(self, widget, extruder):
+        if extruder == self.current_extruder:
+            return
+
+        self._screen._ws.klippy.gcode_script("T%s" % self._printer.get_tool_number(extruder))
 
     def change_speed(self, widget, speed):
         if self.speed == speed:

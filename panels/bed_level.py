@@ -90,10 +90,16 @@ class BedLevelPanel(ScreenPanel):
         self.labels['fr'] = self._gtk.ButtonImage("bed-level-b-r", None, None, 3, 3)
         self.labels['fr'].connect("clicked", self.go_to_position, self.screws[1])
 
-        grid.attach(self.labels['bl'], 1, 0, 1, 1)
-        grid.attach(self.labels['br'], 2, 0, 1, 1)
-        grid.attach(self.labels['fl'], 1, 1, 1, 1)
-        grid.attach(self.labels['fr'], 2, 1, 1, 1)
+        if self._screen.lang_ltr:
+            grid.attach(self.labels['bl'], 1, 0, 1, 1)
+            grid.attach(self.labels['br'], 2, 0, 1, 1)
+            grid.attach(self.labels['fl'], 1, 1, 1, 1)
+            grid.attach(self.labels['fr'], 2, 1, 1, 1)
+        else:
+            grid.attach(self.labels['bl'], 2, 0, 1, 1)
+            grid.attach(self.labels['br'], 1, 0, 1, 1)
+            grid.attach(self.labels['fl'], 2, 1, 1, 1)
+            grid.attach(self.labels['fr'], 1, 1, 1, 1)
 
         self.labels['home'] = self._gtk.ButtonImage("home",_("Home All"),"color2")
         self.labels['home'].connect("clicked", self.home)
@@ -146,7 +152,7 @@ class BedLevelPanel(ScreenPanel):
                 data
             )
             if result:
-                screw_labels = ['fl','fr','br','bl']
+                screw_labels = ['fl','fr','bl','br']
                 x = int(float(result.group(2)) + self.x_offset)
                 y = int(float(result.group(3)) + self.y_offset)
                 logger.debug(data)

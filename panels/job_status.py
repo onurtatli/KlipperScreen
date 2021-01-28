@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import gi
 import logging
 import math
@@ -23,6 +24,7 @@ class JobStatusPanel(ScreenPanel):
         _ = self.lang.gettext
         self.layout = Gtk.Layout()
         self.layout.set_size(self._screen.width, self._screen.height)
+        self.timeleft_type = "file"
 
         self.create_buttons()
 
@@ -93,21 +95,28 @@ class JobStatusPanel(ScreenPanel):
 
         self.labels['thumbnail'] = self._gtk.Image("file.svg", False, 1.6, 1.6)
 
-        extruder = self._gtk.Image("extruder-1.svg", None, .6, .6)
-        self.labels['extruder'] = Gtk.Label(label="")
-        self.labels['extruder'].get_style_context().add_class("printing-info")
-        extruder_box = Gtk.Box(spacing=0)
-        extruder_box.add(extruder)
-        extruder_box.add(self.labels['extruder'])
-        heater_bed = self._gtk.Image("bed.svg", None, .6, .6)
-        self.labels['heater_bed'] = Gtk.Label(label="")
-        self.labels['heater_bed'].get_style_context().add_class("printing-info")
-        heater_bed_box = Gtk.Box(spacing=0)
-        heater_bed_box.add(heater_bed)
-        heater_bed_box.add(self.labels['heater_bed'])
+        i = 0
+        for extruder in self._printer.get_tools():
+            self.labels[extruder + '_box'] = Gtk.Box(spacing=0)
+            self.labels[extruder] = Gtk.Label(label="")
+            self.labels[extruder].get_style_context().add_class("printing-info")
+            if i <= 4:
+                ext_img = self._gtk.Image("extruder-%s.svg" % i, None, .6, .6)
+                self.labels[extruder + '_box'].add(ext_img)
+            self.labels[extruder + '_box'].add(self.labels[extruder])
+            i += 1
+
         temp_grid = self._gtk.HomogeneousGrid()
-        temp_grid.attach(extruder_box, 0, 0, 1, 1)
-        temp_grid.attach(heater_bed_box, 1, 0, 1, 1)
+        self.current_extruder = self._printer.get_stat("toolhead","extruder")
+        temp_grid.attach(self.labels[self.current_extruder + '_box'], 0, 0, 1, 1)
+        if self._printer.has_heated_bed():
+            heater_bed = self._gtk.Image("bed.svg", None, .6, .6)
+            self.labels['heater_bed'] = Gtk.Label(label="")
+            self.labels['heater_bed'].get_style_context().add_class("printing-info")
+            heater_bed_box = Gtk.Box(spacing=0)
+            heater_bed_box.add(heater_bed)
+            heater_bed_box.add(self.labels['heater_bed'])
+            temp_grid.attach(heater_bed_box, 1, 0, 1, 1)
         self.labels['temp_grid'] = temp_grid
 
         # Create time remaining items
@@ -314,7 +323,7 @@ class JobStatusPanel(ScreenPanel):
         self.disable_button("pause","resume","cancel")
         self._screen._ws.klippy.print_cancel(self._response_callback)
 
-    def _response_callback(self, response, method, params, func, *args):
+    def _response_callback(self, response, method, params, func=None, *args):
         if func == "enable_button":
             self.enable_button(*args)
 
@@ -341,10 +350,11 @@ class JobStatusPanel(ScreenPanel):
             return
         _ = self.lang.gettext
 
-        self.update_temp("heater_bed",
-            self._printer.get_dev_stat("heater_bed","temperature"),
-            self._printer.get_dev_stat("heater_bed","target")
-        )
+        if self._printer.has_heated_bed():
+            self.update_temp("heater_bed",
+                self._printer.get_dev_stat("heater_bed","temperature"),
+                self._printer.get_dev_stat("heater_bed","target")
+            )
         for x in self._printer.get_tools():
             self.update_temp(x,
                 self._printer.get_dev_stat(x,"temperature"),
@@ -352,9 +362,17 @@ class JobStatusPanel(ScreenPanel):
             )
 
 
-        if "toolhead" in data and "position" in data["toolhead"]:
-            self.labels['pos_x'].set_text("X: %.2f" % (data["toolhead"]["position"][0]))
-            self.labels['pos_y'].set_text("Y: %.2f" % (data["toolhead"]["position"][1]))
+        if "toolhead" in data:
+            if "extruder" in data["toolhead"]:
+                if data["toolhead"]["extruder"] != self.current_extruder:
+                    self.labels['temp_grid'].remove_column(0)
+                    self.labels['temp_grid'].insert_column(0)
+                    self.current_extruder = data["toolhead"]["extruder"]
+                    self.labels['temp_grid'].attach(self.labels[self.current_extruder + '_box'], 0, 0, 1, 1)
+                    self._screen.show_all()
+            if "position" in data["toolhead"]:
+                self.labels['pos_x'].set_text("X: %.2f" % (data["toolhead"]["position"][0]))
+                self.labels['pos_y'].set_text("Y: %.2f" % (data["toolhead"]["position"][1]))
         if "gcode_move" in data and "gcode_position" in data["gcode_move"]:
             self.labels['pos_z'].set_text("Z: %.2f" % (data["gcode_move"]["gcode_position"][2]))
 
@@ -383,7 +401,8 @@ class JobStatusPanel(ScreenPanel):
                 self.set_state("complete")
                 self.show_buttons_for_state()
                 timeout = self._config.get_main_config().getint("job_complete_timeout", 30)
-                GLib.timeout_add(timeout * 1000, self.close_panel)
+                if timeout != 0:
+                    GLib.timeout_add(timeout * 1000, self.close_panel)
             elif ps['state'] == "error" and self.state != "error":
                 logger.debug("Error!")
                 self.set_state("error")
@@ -399,7 +418,7 @@ class JobStatusPanel(ScreenPanel):
                 if ps['filename'] != "":
                     self.filename = ps['filename']
                     self.file_metadata = None
-                    self.update_text("file", self.filename)
+                    self.update_text("file", self.filename.split("/")[-1])
                 else:
                     file = "Unknown"
                     self.update_text("file", "Unknown file")
@@ -417,18 +436,33 @@ class JobStatusPanel(ScreenPanel):
                     self.progress = progress
                     self.labels['darea'].queue_draw()
 
-                if ps['print_duration'] == 0:
-                    time_left = self.file_metadata['estimated_time'] if "estimated_time" in self.file_metadata else 0
-                else:
-                    est_time = self.file_metadata['estimated_time'] if "estimated_time" in self.file_metadata else 0
-                    time_left = max(
-                        est_time - ps['print_duration'] ,
-                        0 #ps['print_duration'] / (vsd['progress'] if vsd['progress'] != 0 else 1)
-                    )
-
                 self.update_text("duration", str(self._gtk.formatTimeString(ps['print_duration'])))
+
+            timeleft_type = self._config.get_config()['main'].get('print_estimate_method','file')
+
+            if timeleft_type != self.timeleft_type:
+                if self.timeleft_type == "duration":
+                    self.labels['it_box'].add(self.labels['est_time'])
+                elif timeleft_type == "duration":
+                    self.labels['it_box'].remove(self.labels['est_time'])
+                self.timeleft_type = timeleft_type
+
+            if timeleft_type in ['filament','file','slicer']:
+                duration = ps['print_duration']
+                if timeleft_type == "filament":
+                    estimated_filament = (self.file_metadata['filament_total'] if "filament_total" in self.file_metadata
+                            else 1)
+                    total_duration = duration / (ps['filament_used'] / estimated_filament)
+                elif timeleft_type == "file":
+                    total_duration = duration / max(self.progress, 0.0001)
+                elif timeleft_type == "slicer":
+                    total_duration = (self.file_metadata['estimated_time'] if "estimated_time" in self.file_metadata
+                            else duration)
+
+                time_left = max(total_duration - duration, 0)
                 self.update_text("time_left", str(self._gtk.formatTimeString(time_left)))
-                self.update_progress()
+
+            self.update_progress()
 
         if "pause_resume" in data and self.state != "complete":
             if self.state == "paused" and data['pause_resume']['is_paused'] == False:
@@ -496,7 +530,7 @@ class JobStatusPanel(ScreenPanel):
             self.labels[label].set_text(text)
 
     def update_progress (self):
-        self.labels['progress_text'].set_text("%s%%" % (str(int(self.progress*100))))
+        self.labels['progress_text'].set_text("%s%%" % (str( min(int(self.progress*100),100) )))
 
     #def update_temp(self, dev, temp, target):
     #    if dev in self.labels:

@@ -20,7 +20,8 @@ install_packages()
         python3-gi-cairo \
         python3-virtualenv \
         gir1.2-gtk-3.0 \
-        virtualenv
+        virtualenv \
+        matchbox-keyboard
 }
 
 create_virtualenv()
@@ -50,10 +51,21 @@ install_systemd_service()
     sudo systemctl enable KlipperScreen
 }
 
+modify_user()
+{
+    sudo usermod -a -G tty $USER
+}
+
 update_x11()
 {
-    echo "Updating X11 configuration"
-    sudo sed -i 's/allowed_users=console/allowed_users=anybody/g' /etc/X11/Xwrapper.config
+    if [ -e /etc/X11/Xwrapper.conf ]
+    then
+        echo "Updating X11 Xwrapper"
+        sudo sed -i 's/allowed_users=console/allowed_users=anybody/g' /etc/X11/Xwrapper.config
+    else
+        echo "Adding X11 Xwrapper"
+        echo 'allowed_users=anybody' | sudo tee /etc/X11/Xwrapper.config
+    fi
 }
 
 start_KlipperScreen() {
@@ -62,6 +74,7 @@ start_KlipperScreen() {
 
 install_packages
 create_virtualenv
+modify_user
 install_systemd_service
 update_x11
 start_KlipperScreen

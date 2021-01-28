@@ -3,6 +3,7 @@ import logging
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
+from jinja2 import Environment, Template
 
 from ks_includes.KlippyGtk import KlippyGtk
 from ks_includes.KlippyGcodes import KlippyGcodes
@@ -40,6 +41,14 @@ class ScreenPanel:
         self.control['estop'].connect("clicked", self.emergency_stop)
         self.layout.put(self.control['estop'], int(self._screen.width/4*3 - button_scale[0]/2), 0)
 
+        try:
+            env = Environment(extensions=["jinja2.ext.i18n"])
+            env.install_gettext_translations(self.lang)
+            j2_temp = env.from_string(title)
+            title = j2_temp.render()
+        except:
+            logger.debug("Error parsing jinja for title: %s" % title)
+
         self.title = Gtk.Label()
         self.title.set_size_request(self._screen.width, self.title_spacing)
         self.title.set_hexpand(True)
@@ -72,12 +81,12 @@ class ScreenPanel:
         self._screen._ws.klippy.gcode_script(KlippyGcodes.HOME)
 
     def menu_item_clicked(self, widget, panel, item):
-        print("### Creating panel "+ item['panel'])
+        print("### Creating panel "+ item['panel'] + " : %s %s" % (panel, item))
         if "items" in item:
-            self._screen.show_panel(self._screen._cur_panels[-1] + '_' + item['name'], item['panel'], item['name'],
+            self._screen.show_panel(self._screen._cur_panels[-1] + '_' + panel, item['panel'], item['name'],
                 1, False, items=item['items'])
             return
-        self._screen.show_panel(self._screen._cur_panels[-1] + '_' + item['name'], item['panel'], item['name'],
+        self._screen.show_panel(self._screen._cur_panels[-1] + '_' + panel, item['panel'], item['name'],
             1, False)
 
     def menu_return(self, widget, home=False):
